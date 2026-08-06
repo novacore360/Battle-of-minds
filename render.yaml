@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: quizme-offline
+    name: mindbattle-offline
     runtime: static
     buildCommand: "echo 'static site, nothing to build'"
     staticPublishPath: .
