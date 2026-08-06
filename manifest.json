@@ -1,6 +1,6 @@
 {
-  "name": "QuizMe Offline",
-  "short_name": "QuizMe",
+  "name": "MindBattle Offline",
+  "short_name": "MindBattle",
   "description": "Fully offline tap-to-answer quiz app with solo practice and hotspot multiplayer battles.",
   "start_url": "./index.html",
   "scope": "./",
