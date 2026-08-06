@@ -1,0 +1,1743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>QuizMe Offline — Hotspot Quiz Battles</title>
+<link rel="icon" type="image/png" href="icons/favicon-192.png">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/favicon-192.png">
+<meta name="theme-color" content="#6C4AE6">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="QuizMe">
+<style>
+/* =========================================================
+   QuizMe Offline — Design Tokens (adapted from QuizMe violet theme)
+   100% self-contained. No external fonts, no CDN, no network calls.
+   ========================================================= */
+:root{
+  --v900:#1E1638; --v700:#4C33B0; --v600:#6C4AE6; --v500:#7C5CFC; --v400:#9B82FA; --v200:#D9CFFC; --v100:#EDE7FE;
+  --em600:#F0530C; --em500:#FF7A33; --em400:#FF9A5C; --em100:#FFE7D6;
+  --mint600:#0EA890; --mint500:#1FC6AC; --mint100:#DCFAF3;
+  --coral600:#E23B5C; --coral500:#FB4D6F; --coral100:#FFE1E7;
+  --gold:#F4B740; --silver:#B8C0D6; --bronze:#D08A57;
+  --ink900:#1E1A2E; --ink700:#423C57; --ink500:#7A7391; --ink300:#B3ACC7;
+  --canvas:#F5F2FC; --surface:#FFFFFF; --line:rgba(30,22,56,.08);
+  --grad-hero:linear-gradient(155deg,#6C4AE6 0%,#7C5CFC 48%,#9B82FA 100%);
+  --grad-ember:linear-gradient(135deg,#FF9A5C 0%,#FF7A33 55%,#F0530C 100%);
+  --grad-mint:linear-gradient(135deg,#4EE0C6 0%,#1FC6AC 100%);
+  --sh-sm:0 2px 8px rgba(30,22,56,.06); --sh-md:0 10px 28px rgba(76,51,176,.14); --sh-lg:0 18px 44px rgba(76,51,176,.20);
+  --r-sm:12px; --r-md:18px; --r-lg:26px; --r-pill:999px;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --app-max:480px;
+}
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0; background:var(--canvas); font-family:var(--font); color:var(--ink900);
+  -webkit-font-smoothing:antialiased; overscroll-behavior:none;
+}
+h1,h2,h3,h4,h5,h6{font-family:var(--font); color:var(--ink900); letter-spacing:-.01em; margin:0 0 6px;}
+p{margin:0 0 8px;}
+button{font-family:inherit;color:inherit;background:none;border:none;cursor:pointer;padding:0;margin:0;}
+input,textarea,select{font-family:inherit;}
+img{display:block;}
+a{color:var(--v600);}
+
+#app{max-width:var(--app-max); margin:0 auto; min-height:100vh; display:flex; flex-direction:column; background:var(--canvas); position:relative;}
+
+.screen{display:none; flex:1; flex-direction:column; padding:16px 16px calc(90px + env(safe-area-inset-bottom));}
+.screen.active{display:flex;}
+.screen.flow{padding-bottom:24px;}
+
+/* top bar */
+.topbar{display:flex;align-items:center;justify-content:space-between;height:60px;padding:0 4px;position:sticky;top:0;background:var(--canvas);z-index:5;}
+.topbar .brand{display:flex;align-items:center;gap:8px;font-weight:800;font-size:1.05rem;}
+.topbar .brand img{width:30px;height:30px;border-radius:8px;}
+.icon-btn{width:38px;height:38px;border-radius:var(--r-pill);display:flex;align-items:center;justify-content:center;background:var(--surface);box-shadow:var(--sh-sm);}
+.icon-btn img{width:18px;height:18px;}
+.icon-btn.ghost{background:transparent;box-shadow:none;}
+
+.backheader{display:flex;align-items:center;gap:10px;height:52px;}
+.backheader h3{flex:1;margin:0;font-size:1.05rem;font-weight:800;}
+
+/* bottom nav */
+.bottomnav{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:var(--app-max);
+  background:var(--surface);box-shadow:0 -6px 24px rgba(30,22,56,.10);display:flex;justify-content:space-around;
+  padding:10px 6px calc(10px + env(safe-area-inset-bottom));z-index:20;border-radius:20px 20px 0 0;}
+.navbtn{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:.68rem;font-weight:700;color:var(--ink300);width:64px;}
+.navbtn img{width:22px;height:22px;opacity:.55;}
+.navbtn.active{color:var(--v600);}
+.navbtn.active img{opacity:1;}
+
+/* cards & building blocks */
+.card{background:var(--surface);border-radius:var(--r-md);box-shadow:var(--sh-sm);padding:16px;margin-bottom:12px;}
+.card-lg{padding:20px;}
+.hero{background:var(--grad-hero);border-radius:var(--r-lg);padding:20px;color:#fff;box-shadow:var(--sh-md);position:relative;overflow:hidden;margin-bottom:14px;}
+.hero:before{content:"";position:absolute;inset:0;background:radial-gradient(120px 120px at 90% -10%, rgba(255,255,255,.25), transparent 70%);}
+.eyebrow{font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.85;}
+.pill{display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border-radius:var(--r-pill);font-size:.72rem;font-weight:800;}
+.row{display:flex;align-items:center;}
+.row.between{justify-content:space-between;}
+.row.gap{gap:8px;}
+.col{display:flex;flex-direction:column;}
+.grow{flex:1;}
+.mt-2{margin-top:8px;} .mt-3{margin-top:14px;} .mb-2{margin-bottom:8px;} .mb-3{margin-bottom:14px;} .mb-4{margin-bottom:20px;}
+.muted{color:var(--ink500);font-size:.85rem;}
+.small{font-size:.78rem;}
+.center{text-align:center;}
+
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px 16px;border-radius:var(--r-md);
+  font-weight:800;font-size:.95rem;transition:transform .08s ease;}
+.btn:active{transform:scale(.98);}
+.btn img{width:18px;height:18px;}
+.btn-primary{background:var(--grad-ember);color:#fff;box-shadow:0 10px 24px rgba(240,83,12,.28);}
+.btn-violet{background:var(--v600);color:#fff;box-shadow:var(--sh-md);}
+.btn-outline{background:var(--surface);color:var(--v600);border:2px solid var(--v200);}
+.btn-ghost{background:var(--v100);color:var(--v700);}
+.btn-sm{padding:9px 14px;font-size:.82rem;width:auto;}
+.btn-danger{background:var(--coral100);color:var(--coral600);}
+.btn:disabled{opacity:.5;pointer-events:none;}
+
+.field-label{font-size:.78rem;font-weight:800;color:var(--ink700);margin-bottom:6px;display:block;}
+.input, textarea.input{width:100%;padding:12px 14px;border-radius:var(--r-sm);border:2px solid var(--line);background:var(--surface);font-size:.92rem;outline:none;}
+.input:focus, textarea.input:focus{border-color:var(--v400);}
+textarea.input{resize:vertical;min-height:70px;font-family:ui-monospace,Consolas,monospace;font-size:.82rem;}
+.segmented{display:flex;background:var(--v100);border-radius:var(--r-pill);padding:4px;gap:2px;}
+.segmented button{flex:1;padding:9px 4px;text-align:center;border-radius:var(--r-pill);font-size:.78rem;font-weight:800;color:var(--v700);}
+.segmented button.active{background:var(--v600);color:#fff;box-shadow:var(--sh-sm);}
+.range{width:100%;accent-color:var(--v600);}
+
+.avatar{border-radius:var(--r-pill);object-fit:cover;background:var(--v100);flex-shrink:0;}
+.avatar-picker{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.avatar-choice{border-radius:var(--r-pill);padding:3px;border:3px solid transparent;}
+.avatar-choice.active{border-color:var(--v600);}
+.avatar-choice img{width:100%;border-radius:var(--r-pill);}
+
+.list-row{display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid var(--line);}
+.list-row:last-child{border-bottom:none;}
+.badge{font-size:.68rem;font-weight:800;padding:3px 9px;border-radius:var(--r-pill);background:var(--canvas);color:var(--ink500);border:1px solid var(--line);}
+.badge.host{background:var(--v100);color:var(--v700);}
+.badge.you{background:var(--mint100);color:var(--mint600);}
+.badge.live{background:var(--coral100);color:var(--coral600);}
+.badge.waiting{background:var(--mint100);color:var(--mint600);}
+
+.codebox{font-family:ui-monospace,Consolas,monospace;font-size:.78rem;line-height:1.4;background:var(--v900);color:#D9CFFC;
+  border-radius:var(--r-sm);padding:12px;max-height:120px;overflow:auto;word-break:break-all;white-space:pre-wrap;}
+.big-code{font-family:ui-monospace,Consolas,monospace;font-weight:800;font-size:1.6rem;letter-spacing:.12em;text-align:center;color:#fff;}
+
+.alert{padding:10px 12px;border-radius:var(--r-sm);font-size:.82rem;font-weight:600;}
+.alert-danger{background:var(--coral100);color:var(--coral600);}
+.alert-info{background:var(--v100);color:var(--v700);}
+.alert-mint{background:var(--mint100);color:var(--mint600);}
+
+.progress-track{height:8px;border-radius:var(--r-pill);background:var(--v100);overflow:hidden;}
+.progress-fill{height:100%;background:var(--v600);border-radius:var(--r-pill);transition:width .2s linear;}
+.progress-fill.timer{background:var(--em500);}
+.progress-fill.timer.low{background:var(--coral500);}
+
+.blank-input{border-bottom:3px solid var(--v400); border-top:none; border-left:none; border-right:none; border-radius:0;
+  background:transparent; font-weight:800; font-size:1.05rem; text-align:center; padding:6px 4px; min-width:110px; color:var(--v700);}
+.blank-input:focus{outline:none; border-color:var(--v600);}
+
+.spinner{width:34px;height:34px;border-radius:50%;border:4px solid var(--v100);border-top-color:var(--v600);animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.pulse{animation:pulse 1.6s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.45;}}
+
+.toast{position:fixed;left:50%;bottom:100px;transform:translateX(-50%);background:var(--ink900);color:#fff;padding:10px 18px;
+  border-radius:var(--r-pill);font-size:.82rem;font-weight:700;box-shadow:var(--sh-lg);z-index:100;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(-6px);}
+
+.fab-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.action-tile{background:var(--surface);border-radius:var(--r-lg);padding:18px 14px;box-shadow:var(--sh-sm);text-align:left;}
+.action-tile img{width:30px;height:30px;margin-bottom:10px;}
+.action-tile h4{font-size:.92rem;margin-bottom:2px;}
+.action-tile p{font-size:.72rem;color:var(--ink500);margin:0;}
+
+.rank-medal{width:30px;height:30px;flex-shrink:0;}
+
+.qtext{font-size:1.15rem;font-weight:700;line-height:1.5;}
+.timerbig{font-weight:900;font-family:ui-monospace,monospace;}
+
+.options-grid{display:grid;grid-template-columns:1fr;gap:10px;}
+.option-btn{display:flex;align-items:center;gap:10px;text-align:left;padding:13px 14px;border-radius:var(--r-md,14px);
+  border:2px solid var(--line);background:var(--surface);font-weight:700;font-size:.95rem;color:var(--ink900,#1a1a2e);
+  cursor:pointer;transition:border-color .15s,background .15s,transform .1s;}
+.option-btn:active{transform:scale(.98);}
+.option-btn:disabled{cursor:default;}
+.option-btn .opt-letter{flex-shrink:0;width:26px;height:26px;border-radius:50%;background:var(--v100);color:var(--v700);
+  font-weight:800;font-size:.78rem;display:flex;align-items:center;justify-content:center;}
+.option-btn .opt-text{flex:1;}
+.option-btn.selected{border-color:var(--v600);background:var(--v100);}
+.option-btn.selected .opt-letter{background:var(--v600);color:#fff;}
+.option-btn.correct{border-color:var(--mint600,#0a9);background:var(--mint100,#e6fbf3);}
+.option-btn.correct .opt-letter{background:var(--mint600,#0a9);color:#fff;}
+.option-btn.wrong{border-color:var(--coral600,#e04b4b);background:var(--coral100,#fdeaea);}
+.option-btn.wrong .opt-letter{background:var(--coral600,#e04b4b);color:#fff;}
+
+.codebox-wrap{position:relative;}
+.code-chunked{word-spacing:2px;}
+
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-thumb{background:var(--v200);border-radius:4px;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ============ SCREENS ============ -->
+  <div id="app-content"></div>
+
+  <!-- bottom nav (only shown on main tabs) -->
+  <nav class="bottomnav" id="bottomnav" style="display:none;">
+    <button class="navbtn" data-nav="home"><img src="icons/home.png" alt=""><span>Home</span></button>
+    <button class="navbtn" data-nav="discover"><img src="icons/wifi.png" alt=""><span>Discover</span></button>
+    <button class="navbtn" data-nav="rankings"><img src="icons/trophy.png" alt=""><span>Rankings</span></button>
+    <button class="navbtn" data-nav="quizsets"><img src="icons/quiz.png" alt=""><span>Quiz Sets</span></button>
+    <button class="navbtn" data-nav="profile"><img src="icons/profile.png" alt=""><span>Profile</span></button>
+  </nav>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+/* =========================================================================
+   QuizMe Offline — fully self-contained, no network, no build step.
+   Multiplayer over a phone hotspot uses WebRTC with a one-time manual
+   "connect code" exchange (offer/answer) since a browser page cannot open
+   a server or scan the local network on its own. A "Same-device Test Mode"
+   (BroadcastChannel) is also included so you can try the whole flow with
+   two browser tabs on one computer, with automatic discovery.
+   ========================================================================= */
+"use strict";
+
+/* ---------------------------------------------------------------- utils */
+const $ = (sel, root=document) => root.querySelector(sel);
+const $all = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+const uid = () => Math.random().toString(36).slice(2,10) + Date.now().toString(36).slice(-4);
+const nowMs = () => Date.now();
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function normalize(s){
+  return String(s||'').trim().toLowerCase()
+    .replace(/['’]/g,'')
+    .replace(/[^a-z0-9\s]/g,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+function answerMatches(given, accepted){
+  const g = normalize(given);
+  if(!g) return false;
+  return accepted.some(a => normalize(a) === g);
+}
+let toastTimer=null;
+function toast(msg){
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(()=>t.classList.remove('show'), 1800);
+}
+function fmtTime(sec){ sec=Math.max(0,Math.round(sec)); return sec+'s'; }
+function avatarSrc(idx){ return `icons/avatar-${((idx||0)%8)+1}.png`; }
+function copyText(text){
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(()=>toast('Copied to clipboard')).catch(()=>fallbackCopy(text));
+  } else fallbackCopy(text);
+}
+function fallbackCopy(text){
+  const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta);
+  ta.select(); try{ document.execCommand('copy'); toast('Copied to clipboard'); }catch(e){ toast('Copy failed — select & copy manually'); }
+  document.body.removeChild(ta);
+}
+
+/* ---------------------------------------------------------------- built-in fill-in-the-blank quiz sets */
+function q(text, answers){ return { id: uid(), text, answers: Array.isArray(answers)?answers:[answers] }; }
+
+const BUILTIN_QUIZSETS = [
+  { id:'builtin-general', builtin:true, icon:'target', name:'General Knowledge', questions:[
+    q('The largest planet in our solar system is ____.', ['Jupiter']),
+    q('Water freezes at ____ degrees Celsius.', ['0','zero']),
+    q('The human body has ____ lungs.', ['2','two']),
+    q('The capital of Japan is ____.', ['Tokyo']),
+    q('A group of lions is called a ____.', ['pride']),
+    q('The chemical symbol for gold is ____.', ['Au']),
+    q('The fastest land animal is the ____.', ['cheetah']),
+    q('The Great Wall is located in ____.', ['China']),
+    q('The currency of the United States is the ____.', ['dollar','US dollar','usd']),
+    q('The Sahara is the world\'s largest hot ____.', ['desert']),
+  ]},
+  { id:'builtin-science', builtin:true, icon:'controller', name:'Science', questions:[
+    q('The powerhouse of the cell is the ____.', ['mitochondria','mitochondrion']),
+    q('Humans breathe in oxygen and breathe out ____.', ['carbon dioxide','co2']),
+    q('The force that pulls objects toward Earth is called ____.', ['gravity']),
+    q('Plants make their own food through a process called ____.', ['photosynthesis']),
+    q('The closest star to Earth is the ____.', ['sun']),
+    q('DNA stands for deoxyribonucleic ____.', ['acid']),
+    q('The boiling point of water at sea level is ____ degrees Celsius.', ['100']),
+    q('Sound cannot travel through ____ (empty space).', ['vacuum','space']),
+    q('The study of living organisms is called ____.', ['biology']),
+    q('The smallest unit of matter is the ____.', ['atom']),
+  ]},
+  { id:'builtin-math', builtin:true, icon:'chart', name:'Quick Math', questions:[
+    q('7 + 5 = ____', ['12']),
+    q('9 x 6 = ____', ['54']),
+    q('100 - 37 = ____', ['63']),
+    q('81 ÷ 9 = ____', ['9']),
+    q('The square root of 64 is ____.', ['8']),
+    q('12 x 12 = ____', ['144']),
+    q('A triangle has ____ sides.', ['3','three']),
+    q('15 + 26 = ____', ['41']),
+    q('The value of pi rounded to 2 decimals is ____.', ['3.14']),
+    q('A right angle measures ____ degrees.', ['90']),
+  ]},
+  { id:'builtin-geo', builtin:true, icon:'wifi', name:'Geography', questions:[
+    q('The longest river in the world is the ____ River.', ['Nile']),
+    q('Mount Everest is located in ____.', ['Nepal']),
+    q('The smallest country in the world is ____.', ['Vatican City','the Vatican']),
+    q('The Philippines\' capital city is ____.', ['Manila']),
+    q('The largest ocean on Earth is the ____ Ocean.', ['Pacific']),
+    q('France is located on the continent of ____.', ['Europe']),
+    q('The Amazon rainforest is mostly located in ____.', ['Brazil']),
+    q('Australia is also known as the ____ Continent.', ['island','Down Under']),
+    q('The country shaped like a boot is ____.', ['Italy']),
+    q('Egypt\'s ancient monuments called pyramids are found near ____.', ['Giza','Cairo']),
+  ]},
+  { id:'builtin-english', builtin:true, icon:'quiz', name:'Language & Words', questions:[
+    q('The opposite of "hot" is "____".', ['cold']),
+    q('A word that means the same as "happy" is "____".', ['glad','joyful','cheerful','content']),
+    q('The plural of "child" is "____".', ['children']),
+    q('"Quick" and "____" are synonyms.', ['fast','speedy','rapid']),
+    q('A person who writes books is called an ____.', ['author','writer']),
+    q('The past tense of "go" is "____".', ['went']),
+    q('A word that sounds the same as "there" but means belonging to them is "____".', ['their']),
+    q('The opposite of "begin" is "____".', ['end','finish']),
+    q('Seven days make up one ____.', ['week']),
+    q('A story that is not true is called ____.', ['fiction']),
+  ]},
+];
+
+
+/* ---------------------------------------------------------------- storage */
+const DB = {
+  get(key, fallback){ try{ const v = localStorage.getItem('qm_'+key); return v==null ? fallback : JSON.parse(v);}catch(e){return fallback;} },
+  set(key, val){ try{ localStorage.setItem('qm_'+key, JSON.stringify(val)); }catch(e){ console.error('storage full?',e); } },
+};
+
+function getProfile(){ return DB.get('profile', null); }
+function saveProfile(p){ DB.set('profile', p); }
+function getQuizSets(){
+  let sets = DB.get('quizsets', null);
+  if(!sets){ sets = BUILTIN_QUIZSETS.map(s=>({...s})); DB.set('quizsets', sets); }
+  return sets;
+}
+function saveQuizSets(sets){ DB.set('quizsets', sets); }
+function getHistory(){ return DB.get('history', []); }
+function pushHistory(entry){ const h = getHistory(); h.unshift(entry); DB.set('history', h.slice(0,100)); }
+function getRankings(){ return DB.get('rankings', {}); }
+function saveRankings(r){ DB.set('rankings', r); }
+function getKnownLobbies(){ return DB.get('known_lobbies', []); }
+function saveKnownLobbies(list){ DB.set('known_lobbies', list.slice(0,25)); }
+function rememberLobby(entry){
+  let list = getKnownLobbies().filter(l => l.code !== entry.code);
+  list.unshift({...entry, lastSeen: nowMs()});
+  saveKnownLobbies(list);
+}
+
+/* =========================================================================
+   TRANSPORT LAYER
+   Two interchangeable transports, same event-driven API:
+     .role                'host' | 'guest'
+     .on(event, cb)        events: 'peer-join','peer-leave','message','open','close'
+     .broadcast(obj)        host -> all guests
+     .send(peerId, obj)     host -> one guest
+     .sendToHost(obj)       guest -> host
+     .close()
+   WebRTC = real cross-device connections over a phone hotspot / shared WiFi
+            (manual one-time "connect code" copy-paste, no STUN/TURN/server).
+   Local  = BroadcastChannel, same browser/device only, fully automatic —
+            handy for testing the whole app with two tabs on one computer.
+   ========================================================================= */
+function makeEmitter(){
+  const listeners = {};
+  return {
+    on(ev, cb){ (listeners[ev] = listeners[ev]||[]).push(cb); },
+    emit(ev, ...args){ (listeners[ev]||[]).forEach(cb=>{ try{cb(...args);}catch(e){console.error(e);} }); },
+  };
+}
+
+/* ---------- code compression (shrinks the connect codes) ---------- */
+function bufToB64Url(buf){
+  let bin=''; const bytes = new Uint8Array(buf);
+  for(let i=0;i<bytes.length;i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function b64UrlToBuf(s){
+  s = s.replace(/-/g,'+').replace(/_/g,'/');
+  while(s.length%4) s+='=';
+  const bin = atob(s);
+  const bytes = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+  return bytes.buffer;
+}
+async function packCode(obj){
+  const bytes = new TextEncoder().encode(JSON.stringify(obj));
+  if(window.CompressionStream){
+    try{
+      const cs = new CompressionStream('gzip');
+      const writer = cs.writable.getWriter();
+      writer.write(bytes); writer.close();
+      const buf = await new Response(cs.readable).arrayBuffer();
+      return 'Z' + bufToB64Url(buf);
+    }catch(e){ /* fall through */ }
+  }
+  return 'P' + bufToB64Url(bytes);
+}
+async function unpackCode(code){
+  code = (code||'').trim().replace(/\s+/g,'');
+  if(!code) throw new Error('Paste a code first.');
+  const tag = code[0], body = code.slice(1);
+  let buf;
+  try{ buf = b64UrlToBuf(body); }catch(e){ throw new Error('That code looks invalid — copy it exactly, with nothing missing.'); }
+  if(tag==='Z'){
+    if(!window.DecompressionStream) throw new Error('This browser is too old to read compressed codes. Try updating it, or use a device with a newer browser to host.');
+    const ds = new DecompressionStream('gzip');
+    const writer = ds.writable.getWriter();
+    writer.write(buf); writer.close();
+    const out = await new Response(ds.readable).arrayBuffer();
+    try{ return JSON.parse(new TextDecoder().decode(out)); }catch(e){ throw new Error('That code looks invalid — copy it exactly, with nothing missing.'); }
+  } else if(tag==='P'){
+    try{ return JSON.parse(new TextDecoder().decode(buf)); }catch(e){ throw new Error('That code looks invalid — copy it exactly, with nothing missing.'); }
+  }
+  throw new Error('That code looks invalid — copy it exactly, with nothing missing.');
+}
+async function shareOrCopy(text, title){
+  if(navigator.share){
+    try{ await navigator.share({ text, title: title||'QuizMe connect code' }); return true; }catch(e){ /* user cancelled or unsupported — fall back */ }
+  }
+  copyText(text);
+  return false;
+}
+
+/* ---------- WebRTC host ---------- */
+function createWebRTCHost(){
+  const em = makeEmitter();
+  const peers = new Map(); // peerId -> {pc, dc}
+  const RTC_CONFIG = { iceServers: [] }; // no STUN/TURN: LAN/hotspot only, fully offline
+
+  async function waitIceComplete(pc){
+    if(pc.iceGatheringState === 'complete') return;
+    await new Promise(resolve=>{
+      function check(){ if(pc.iceGatheringState==='complete'){ pc.removeEventListener('icegatheringstatechange', check); resolve(); } }
+      pc.addEventListener('icegatheringstatechange', check);
+      setTimeout(resolve, 6000); // safety timeout, still usable w/ host candidates gathered so far
+    });
+  }
+
+  async function createInvite(){
+    const peerId = uid();
+    const pc = new RTCPeerConnection(RTC_CONFIG);
+    const dc = pc.createDataChannel('quiz', { ordered:true });
+    peers.set(peerId, { pc, dc, connected:false });
+    dc.onopen = () => { peers.get(peerId).connected = true; em.emit('peer-join', peerId); };
+    dc.onclose = () => { em.emit('peer-leave', peerId); peers.delete(peerId); };
+    dc.onmessage = (e) => { try{ em.emit('message', peerId, JSON.parse(e.data)); }catch(err){} };
+    pc.onconnectionstatechange = () => {
+      if(pc.connectionState==='failed'){ em.emit('peer-failed', peerId); }
+      if(['failed','closed','disconnected'].includes(pc.connectionState)){
+        if(peers.has(peerId)){ em.emit('peer-leave', peerId); peers.delete(peerId); }
+      }
+    };
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    await waitIceComplete(pc);
+    const code = await packCode({ d: pc.localDescription, id: peerId });
+    return { peerId, code };
+  }
+
+  async function acceptAnswerCode(code){
+    let payload;
+    try{ payload = await unpackCode(code); }catch(e){ throw e; }
+    const { d, id } = payload || {};
+    const entry = id ? peers.get(id) : null;
+    if(!entry) throw new Error('This code doesn\'t match an invite from this session. Generate a fresh invite and try again.');
+    await entry.pc.setRemoteDescription(d);
+    return id;
+  }
+
+  function broadcast(obj){
+    const msg = JSON.stringify(obj);
+    peers.forEach(p => { if(p.connected && p.dc.readyState==='open') p.dc.send(msg); });
+  }
+  function send(peerId, obj){
+    const p = peers.get(peerId);
+    if(p && p.dc.readyState==='open') p.dc.send(JSON.stringify(obj));
+  }
+  function kick(peerId){
+    const p = peers.get(peerId);
+    if(p){ try{p.dc.close(); p.pc.close();}catch(e){} peers.delete(peerId); }
+  }
+  function close(){ peers.forEach(p=>{ try{p.dc.close(); p.pc.close();}catch(e){} }); peers.clear(); }
+
+  return Object.assign(em, { role:'host', kind:'webrtc', peers, createInvite, acceptAnswerCode, broadcast, send, kick, close });
+}
+
+/* ---------- WebRTC guest ---------- */
+function createWebRTCGuest(){
+  const em = makeEmitter();
+  let pc=null, dc=null;
+  const RTC_CONFIG = { iceServers: [] };
+
+  async function waitIceComplete(pc){
+    if(pc.iceGatheringState === 'complete') return;
+    await new Promise(resolve=>{
+      function check(){ if(pc.iceGatheringState==='complete'){ pc.removeEventListener('icegatheringstatechange', check); resolve(); } }
+      pc.addEventListener('icegatheringstatechange', check);
+      setTimeout(resolve, 6000);
+    });
+  }
+
+  async function acceptInviteCode(code){
+    let payload;
+    try{ payload = await unpackCode(code); }catch(e){ throw e; }
+    const { d, id } = payload || {};
+    if(!d) throw new Error('That code looks invalid — copy it exactly, with nothing missing.');
+    pc = new RTCPeerConnection(RTC_CONFIG);
+    pc.ondatachannel = (e) => {
+      dc = e.channel;
+      dc.onopen = () => em.emit('open');
+      dc.onclose = () => em.emit('close');
+      dc.onmessage = (ev) => { try{ em.emit('message', null, JSON.parse(ev.data)); }catch(err){} };
+    };
+    pc.onconnectionstatechange = () => {
+      if(pc.connectionState==='failed') em.emit('failed');
+    };
+    await pc.setRemoteDescription(d);
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    await waitIceComplete(pc);
+    const answerCode = await packCode({ d: pc.localDescription, id });
+    return answerCode;
+  }
+
+  function sendToHost(obj){ if(dc && dc.readyState==='open') dc.send(JSON.stringify(obj)); }
+  function close(){ try{ if(dc) dc.close(); if(pc) pc.close(); }catch(e){} }
+
+  return Object.assign(em, { role:'guest', kind:'webrtc', acceptInviteCode, sendToHost, close });
+}
+
+/* ---------- Local (same-device) transport via BroadcastChannel — auto-discovery for testing ---------- */
+const DISCO_CHANNEL = 'quizme-discovery-v1';
+function createLocalHost(roomCode, meta){
+  const em = makeEmitter();
+  const roomCh = new BroadcastChannel('quizme-room-'+roomCode);
+  const discoCh = new BroadcastChannel(DISCO_CHANNEL);
+  const peers = new Map(); // peerId -> {name, avatarIdx, connected:true}
+  let announceTimer = null;
+
+  roomCh.onmessage = (e) => {
+    const msg = e.data;
+    if(!msg) return;
+    if(msg.t === 'join-request'){
+      peers.set(msg.from, { connected:true });
+      em.emit('peer-join', msg.from, msg.profile);
+      roomCh.postMessage({ t:'welcome', to: msg.from });
+    } else if(msg.to === 'HOST' || msg.to == null){
+      if(msg.t === 'leave'){ peers.delete(msg.from); em.emit('peer-leave', msg.from); }
+      else if(msg.from && msg.t !== 'join-request'){ em.emit('message', msg.from, msg.body); }
+    }
+  };
+
+  function startAnnouncing(getStatus){
+    announceTimer = setInterval(()=>{
+      discoCh.postMessage({ t:'announce', roomCode, kind:'local', ts: nowMs(), ...getStatus() });
+    }, 1200);
+  }
+  function stopAnnouncing(){ clearInterval(announceTimer); discoCh.postMessage({ t:'closed', roomCode }); }
+
+  function broadcast(obj){ roomCh.postMessage({ t:'data', from:'HOST', body: obj }); }
+  function send(peerId, obj){ roomCh.postMessage({ t:'data', from:'HOST', to: peerId, body: obj }); }
+  function kick(peerId){ peers.delete(peerId); }
+  function close(){ stopAnnouncing(); roomCh.close(); discoCh.close(); peers.clear(); }
+
+  return Object.assign(em, { role:'host', kind:'local', roomCode, peers, startAnnouncing, stopAnnouncing, broadcast, send, kick, close });
+}
+function createLocalGuest(roomCode, profile){
+  const em = makeEmitter();
+  const roomCh = new BroadcastChannel('quizme-room-'+roomCode);
+  const myId = uid();
+  roomCh.onmessage = (e) => {
+    const msg = e.data;
+    if(!msg) return;
+    if(msg.t === 'welcome' && msg.to === myId) em.emit('open');
+    else if(msg.t === 'data' && (msg.to === myId || msg.to == null) && msg.from === 'HOST') em.emit('message', null, msg.body);
+  };
+  function join(){ roomCh.postMessage({ t:'join-request', from: myId, profile }); }
+  function sendToHost(obj){ roomCh.postMessage({ t:'data', from: myId, body: obj }); }
+  function close(){ try{ roomCh.postMessage({ t:'leave', from: myId }); }catch(e){} roomCh.close(); }
+  return Object.assign(em, { role:'guest', kind:'local', myId, join, sendToHost, close });
+}
+function scanForLocalLobbies(onFound){
+  const discoCh = new BroadcastChannel(DISCO_CHANNEL);
+  discoCh.onmessage = (e) => { if(e.data) onFound(e.data); };
+  return () => discoCh.close();
+}
+
+function recordBattleResults(lobbyName, leaderboard){
+  // leaderboard: [{id,name,avatarIdx,score,correct,total}], sorted desc by score
+  const rankings = getRankings();
+  leaderboard.forEach((p, i) => {
+    const key = p.name.trim().toLowerCase();
+    if(!rankings[key]) rankings[key] = { name:p.name, avatarIdx:p.avatarIdx, games:0, wins:0, totalScore:0, totalCorrect:0, totalQuestions:0, bestScore:0 };
+    const r = rankings[key];
+    r.name = p.name; r.avatarIdx = p.avatarIdx;
+    r.games += 1;
+    if(i===0) r.wins += 1;
+    r.totalScore += p.score;
+    r.totalCorrect += p.correct;
+    r.totalQuestions += p.total;
+    r.bestScore = Math.max(r.bestScore, p.score);
+  });
+  saveRankings(rankings);
+  pushHistory({ id: uid(), date: nowMs(), lobbyName, players: leaderboard });
+}
+
+/* =========================================================================
+   APP STATE + ROUTER
+   ========================================================================= */
+const App = {
+  screen: 'onboarding',
+  params: {},
+  profile: null,
+  create: { quizSetId: 'builtin-general', numQuestions: 8, seconds: 15, mode: 'webrtc' },
+  solo: { quizSetId: 'builtin-general', numQuestions: 8, seconds: 15 },
+  host: null,     // { transport, lobbyName, quizSetId, numQuestions, seconds, mode, roomCode, players:[{id,name,avatarIdx,connected,isHost}], pendingInvitePeerId, inviteCode }
+  guest: null,    // { transport, mode, hostCode, answerCode, players:[], connected, status }
+  battle: null,   // runtime battle state (see runBattleAsHost / guest handlers)
+  editingSetId: null,
+  discoveredLocal: {}, // roomCode -> {..., seenAt}
+  stopScan: null,
+};
+
+const MAIN_TABS = ['home','discover','rankings','quizsets','profile'];
+
+function goTo(screen, params={}){
+  App.screen = screen; App.params = params;
+  render();
+  window.scrollTo(0,0);
+}
+
+function render(){
+  const root = $('#app-content');
+  root.innerHTML = SCREENS[App.screen] ? SCREENS[App.screen]() : `<div class="screen active"><p>Not found.</p></div>`;
+  $all('.screen', root).forEach(s=>s.classList.add('active'));
+  const nav = $('#bottomnav');
+  if(MAIN_TABS.includes(App.screen)){
+    nav.style.display='flex';
+    $all('.navbtn').forEach(b=> b.classList.toggle('active', b.dataset.nav===App.screen));
+  } else nav.style.display='none';
+}
+
+function backHeader(title, onBack, right=''){
+  return `<div class="backheader mb-2">
+    <button class="icon-btn" data-action="back" ${onBack?`data-back="${onBack}"`:''}><img src="icons/chevron-left.png" alt="back"></button>
+    <h3>${esc(title)}</h3>${right}
+  </div>`;
+}
+
+/* =========================================================================
+   SCREEN TEMPLATES
+   ========================================================================= */
+const SCREENS = {};
+
+/* ---------- Onboarding ---------- */
+SCREENS.onboarding = () => {
+  const p = App._draftProfile || { name:'', avatarIdx:0 };
+  return `<div class="screen flow active" style="justify-content:center;">
+    <div class="center mb-4">
+      <img src="icons/app-logo.png" style="width:76px;height:76px;border-radius:20px;margin:0 auto 14px;box-shadow:var(--sh-md);">
+      <h2 style="font-size:1.5rem;">Welcome to QuizMe Offline</h2>
+      <p class="muted">Fill-in-the-blank quiz battles over your phone hotspot — no internet required, ever.</p>
+    </div>
+    <div class="card card-lg">
+      <label class="field-label">Your display name</label>
+      <input class="input mb-3" id="nameInput" maxlength="18" placeholder="e.g. Alex" value="${esc(p.name)}">
+      <label class="field-label">Pick an avatar</label>
+      <div class="avatar-picker mb-3" id="avatarPicker">
+        ${Array.from({length:8}).map((_,i)=>`
+          <button class="avatar-choice ${i===p.avatarIdx?'active':''}" data-action="pick-avatar" data-idx="${i}">
+            <img src="${avatarSrc(i)}" alt="avatar ${i+1}">
+          </button>`).join('')}
+      </div>
+      <button class="btn btn-primary" data-action="finish-onboarding">Let's play <img src="icons/arrow-right.png" style="filter:invert(1);"></button>
+    </div>
+  </div>`;
+};
+
+/* ---------- Home ---------- */
+SCREENS.home = () => {
+  const p = App.profile;
+  const rankings = Object.values(getRankings()).sort((a,b)=>b.totalScore-a.totalScore);
+  const myRank = rankings.findIndex(r=>r.name.toLowerCase()===p.name.toLowerCase());
+  return `<div class="screen active">
+    <div class="topbar">
+      <div class="brand"><img src="icons/app-logo.png" alt="">QuizMe Offline</div>
+      <button class="icon-btn" data-action="goto" data-screen="profile"><img src="${avatarSrc(p.avatarIdx)}" style="border-radius:50%;"></button>
+    </div>
+
+    <div class="hero">
+      <div style="position:relative;z-index:1;">
+        <div class="eyebrow">Fully offline · no internet</div>
+        <h2 style="color:#fff;font-size:1.3rem;margin-top:4px;">Hey ${esc(p.name)} 👋</h2>
+        <p style="color:rgba(255,255,255,.85);font-size:.85rem;">${myRank>=0 ? `Ranked #${myRank+1} locally · ${rankings[myRank].totalScore} pts` : 'Play a battle to get ranked'}</p>
+      </div>
+    </div>
+
+    <div class="fab-actions mb-3">
+      <button class="action-tile" data-action="goto" data-screen="solo-setup">
+        <img src="icons/play.png"><h4>Solo Quiz</h4><p>Practice alone, no other players needed</p>
+      </button>
+      <button class="action-tile" data-action="goto" data-screen="create-lobby">
+        <img src="icons/hotspot.png"><h4>Create Lobby</h4><p>Open your hotspot &amp; host a battle</p>
+      </button>
+      <button class="action-tile" data-action="goto" data-screen="join-lobby">
+        <img src="icons/wifi.png"><h4>Join Lobby</h4><p>Connect to a friend's hotspot</p>
+      </button>
+      <button class="action-tile" data-action="goto" data-screen="discover">
+        <img src="icons/search.png"><h4>Discover</h4><p>Find nearby open lobbies</p>
+      </button>
+      <button class="action-tile" data-action="goto" data-screen="rankings">
+        <img src="icons/trophy.png"><h4>Rankings</h4><p>See the local leaderboard</p>
+      </button>
+    </div>
+
+    <div class="row between mb-2"><h4 style="margin:0;">How it works</h4></div>
+    <div class="card small">
+      <div class="row gap mb-2"><img src="icons/hotspot.png" style="width:20px;height:20px;"><span><b>1.</b> User A creates a lobby and turns on their phone hotspot.</span></div>
+      <div class="row gap mb-2"><img src="icons/wifi.png" style="width:20px;height:20px;"><span><b>2.</b> User B &amp; C connect to that hotspot's Wi-Fi.</span></div>
+      <div class="row gap"><img src="icons/controller.png" style="width:20px;height:20px;"><span><b>3.</b> Exchange a one-time connect code, then battle by tapping the correct answer!</span></div>
+    </div>
+  </div>`;
+};
+
+/* ---------- Profile ---------- */
+SCREENS.profile = () => {
+  const p = App.profile;
+  const r = getRankings()[p.name.trim().toLowerCase()];
+  return `<div class="screen active">
+    <div class="topbar"><div class="brand">Profile</div></div>
+    <div class="card card-lg center mb-3">
+      <img src="${avatarSrc(p.avatarIdx)}" style="width:84px;height:84px;border-radius:50%;margin:0 auto 10px;box-shadow:var(--sh-md);">
+      <h3>${esc(p.name)}</h3>
+      <p class="muted small">${r? `${r.games} games · ${r.wins} wins · ${r.totalScore} total pts` : 'No battles played yet'}</p>
+    </div>
+    <div class="card mb-3">
+      <label class="field-label">Display name</label>
+      <input class="input mb-3" id="editName" maxlength="18" value="${esc(p.name)}">
+      <label class="field-label">Avatar</label>
+      <div class="avatar-picker mb-3" id="editAvatarPicker">
+        ${Array.from({length:8}).map((_,i)=>`
+          <button class="avatar-choice ${i===p.avatarIdx?'active':''}" data-action="pick-avatar-edit" data-idx="${i}">
+            <img src="${avatarSrc(i)}"></button>`).join('')}
+      </div>
+      <button class="btn btn-violet" data-action="save-profile">Save changes</button>
+    </div>
+    <div class="card">
+      <button class="btn btn-danger" data-action="reset-data"><img src="icons/trash.png">Reset all local data</button>
+      <p class="muted small mt-2">This clears your profile, quiz sets, rankings and history from this device only.</p>
+    </div>
+  </div>`;
+};
+
+/* ---------- Rankings ---------- */
+SCREENS.rankings = () => {
+  const rankings = Object.values(getRankings()).sort((a,b)=>b.totalScore-a.totalScore);
+  const history = getHistory();
+  return `<div class="screen active">
+    <div class="topbar"><div class="brand">Rankings</div></div>
+    <p class="muted small mb-3">Ranked by total points earned across every hotspot battle played on this device.</p>
+    ${rankings.length===0 ? `<div class="card center muted">No battles yet — play one to appear on the board!</div>` : `
+    <div class="card mb-3">
+      ${rankings.map((r,i)=>`
+        <div class="list-row">
+          ${i<3 ? `<img class="rank-medal" src="icons/medal-${i===0?'gold':i===1?'silver':'bronze'}.png">`
+                 : `<div class="rank-medal center" style="line-height:30px;font-weight:800;color:var(--ink500);">${i+1}</div>`}
+          <img src="${avatarSrc(r.avatarIdx)}" class="avatar" style="width:36px;height:36px;">
+          <div class="grow">
+            <div style="font-weight:800;font-size:.9rem;">${esc(r.name)}</div>
+            <div class="muted small">${r.games} games · ${r.wins} wins · ${r.totalQuestions? Math.round(100*r.totalCorrect/r.totalQuestions):0}% accuracy</div>
+          </div>
+          <div style="font-weight:800;color:var(--em600);">${r.totalScore}<span class="muted small"> pts</span></div>
+        </div>`).join('')}
+    </div>`}
+
+    <h4>Recent battles</h4>
+    ${history.length===0 ? `<div class="card muted center small">No history yet.</div>` : history.slice(0,10).map(h=>`
+      <div class="card">
+        <div class="row between mb-2"><b class="small">${esc(h.lobbyName)}</b><span class="muted small">${new Date(h.date).toLocaleString()}</span></div>
+        ${h.players.map((pl,i)=>`
+          <div class="row gap" style="padding:3px 0;">
+            <span class="badge ${i===0?'host':''}" style="width:22px;text-align:center;">${i+1}</span>
+            <img src="${avatarSrc(pl.avatarIdx)}" style="width:22px;height:22px;border-radius:50%;">
+            <span class="grow small">${esc(pl.name)}</span>
+            <span class="small" style="font-weight:800;">${pl.score} pts</span>
+          </div>`).join('')}
+      </div>`).join('')}
+  </div>`;
+};
+
+/* ---------- Discover ---------- */
+SCREENS.discover = () => {
+  const local = Object.values(App.discoveredLocal).filter(l => nowMs()-l.seenAt < 4000);
+  const known = getKnownLobbies();
+  return `<div class="screen active">
+    <div class="topbar"><div class="brand">Discover</div></div>
+    <div class="alert alert-info mb-3 small">
+      Browsers can't silently scan a Wi-Fi hotspot for other phones — that's a security restriction, not a QuizMe limit.
+      So real cross-device connections use a quick one-time <b>connect code</b> instead (see Join Lobby — codes are compressed
+      and one tap to Share/Paste, no retyping). This Discover screen auto-finds lobbies opened in <b>other browser tabs on
+      this same device</b>, great for testing.
+      <br><br><b>Can't connect over a real hotspot?</b> Most phone hotspots have "client isolation" / "AP isolation" enabled
+      by default, which blocks connected devices from talking to each other directly (even though they can browse the
+      internet). Turn that setting off in the hotspot's phone settings, or use a home Wi-Fi router instead.
+    </div>
+
+    <h4 class="mb-2">Nearby (same-device test mode)</h4>
+    ${local.length===0 ? `<div class="card muted small center pulse">Scanning… open "Create Lobby" → Same-device test mode in another tab to see it appear here.</div>` :
+      local.map(l=>`
+        <div class="card">
+          <div class="row between">
+            <div>
+              <div style="font-weight:800;">${esc(l.hostName)}'s lobby</div>
+              <div class="muted small">${esc(l.quizSetName||'Quiz')} · ${l.playerCount||0} player(s) · code ${esc(l.roomCode)}</div>
+            </div>
+            <button class="btn btn-violet btn-sm" data-action="discover-join-local" data-room="${esc(l.roomCode)}">Join</button>
+          </div>
+        </div>`).join('')}
+
+    <h4 class="mb-2 mt-3">Recently connected codes</h4>
+    ${known.length===0 ? `<div class="card muted small center">None yet. Codes you connect with will be remembered here for quick re-entry.</div>` :
+      known.map(k=>`
+        <div class="card">
+          <div class="row between">
+            <div>
+              <div style="font-weight:800;">${esc(k.name||'Lobby')}</div>
+              <div class="muted small">Code ${esc(k.code)} · ${new Date(k.lastSeen).toLocaleDateString()}</div>
+            </div>
+            <button class="btn btn-outline btn-sm" data-action="copy-code" data-code="${esc(k.code)}">Copy</button>
+          </div>
+        </div>`).join('')}
+  </div>`;
+};
+
+/* ---------- Quiz Sets list ---------- */
+SCREENS.quizsets = () => {
+  const sets = getQuizSets();
+  return `<div class="screen active">
+    <div class="topbar"><div class="brand">Quiz Sets</div>
+      <button class="icon-btn" data-action="new-quizset"><img src="icons/plus.png"></button>
+    </div>
+    <p class="muted small mb-3">Tap-to-answer quiz sets. Create your own sets to battle with custom questions.</p>
+    ${sets.map(s=>`
+      <div class="card">
+        <div class="row between">
+          <div class="row gap">
+            <img src="icons/${s.icon||'quiz'}.png" style="width:28px;height:28px;">
+            <div>
+              <div style="font-weight:800;">${esc(s.name)}</div>
+              <div class="muted small">${s.questions.length} questions ${s.builtin?'· built-in':'· custom'}</div>
+            </div>
+          </div>
+          <div class="row gap">
+            <button class="icon-btn ghost" data-action="edit-quizset" data-id="${s.id}"><img src="icons/edit.png"></button>
+            ${!s.builtin?`<button class="icon-btn ghost" data-action="delete-quizset" data-id="${s.id}"><img src="icons/trash.png"></button>`:''}
+          </div>
+        </div>
+      </div>`).join('')}
+  </div>`;
+};
+
+/* ---------- Quiz Set editor ---------- */
+SCREENS.quizedit = () => {
+  const sets = getQuizSets();
+  const editing = App.editingSetId ? sets.find(s=>s.id===App.editingSetId) : null;
+  const draft = App._quizDraft || (editing ? JSON.parse(JSON.stringify(editing)) : { id:uid(), name:'', icon:'quiz', questions:[] });
+  App._quizDraft = draft;
+  const readOnly = editing && editing.builtin;
+  return `<div class="screen flow active">
+    ${backHeader(readOnly ? draft.name : (editing?'Edit Quiz Set':'New Quiz Set'), 'quizsets')}
+    ${readOnly ? `<div class="alert alert-info mb-3 small">This is a built-in set and can't be edited, but you can duplicate it as a custom set.</div>`:''}
+    <div class="card mb-3">
+      <label class="field-label">Set name</label>
+      <input class="input mb-3" id="qsName" ${readOnly?'disabled':''} maxlength="30" value="${esc(draft.name)}" placeholder="e.g. Movie Trivia">
+      <label class="field-label">Questions — use ____ (4 underscores) where the blank goes. The <b>first</b> answer is shown as the correct tap-choice; extra ones (optional) are just alternate spellings.</label>
+      <div id="qList">
+        ${draft.questions.map((q,i)=>`
+          <div class="card" style="background:var(--canvas);box-shadow:none;">
+            <div class="row between mb-2"><b class="small">Question ${i+1}</b>
+              ${readOnly?'':`<button class="icon-btn ghost" data-action="remove-question" data-i="${i}"><img src="icons/trash.png"></button>`}</div>
+            <textarea class="input mb-2" ${readOnly?'disabled':''} data-action="edit-qtext" data-i="${i}" placeholder="Paris is the capital of ____.">${esc(q.text)}</textarea>
+            <input class="input" ${readOnly?'disabled':''} data-action="edit-qanswers" data-i="${i}" placeholder="Accepted answers, comma-separated" value="${esc(q.answers.join(', '))}">
+          </div>`).join('')}
+      </div>
+      ${readOnly ? `<button class="btn btn-violet mt-2" data-action="duplicate-quizset" data-id="${editing.id}"><img src="icons/copy.png" style="filter:invert(1);">Duplicate as custom set</button>` : `
+      <button class="btn btn-outline mt-2 mb-3" data-action="add-question"><img src="icons/plus.png">Add question</button>
+      <button class="btn btn-primary" data-action="save-quizset">Save quiz set</button>`}
+    </div>
+  </div>`;
+};
+
+/* ---------- Solo Quiz (practice alone, no networking) ---------- */
+SCREENS['solo-setup'] = () => {
+  const c = App.solo;
+  const sets = getQuizSets();
+  const set = sets.find(s=>s.id===c.quizSetId) || sets[0];
+  const maxQ = set.questions.length;
+  if(c.numQuestions > maxQ) c.numQuestions = maxQ;
+  return `<div class="screen flow active">
+    ${backHeader('Solo Quiz', 'home')}
+    <div class="alert alert-info mb-3 small">Practice mode — just you, no hotspot or other players needed. Your score still saves to your local history.</div>
+    <div class="card mb-3">
+      <label class="field-label">Quiz set</label>
+      <select class="input mb-3" id="soloSetSelect">
+        ${sets.map(s=>`<option value="${s.id}" ${s.id===c.quizSetId?'selected':''}>${esc(s.name)} (${s.questions.length}q)</option>`).join('')}
+      </select>
+
+      <label class="field-label">Number of questions: ${c.numQuestions}</label>
+      <input type="range" class="range mb-4" id="soloNumQRange" min="3" max="${maxQ}" value="${c.numQuestions}">
+
+      <label class="field-label">Time per question</label>
+      <div class="segmented mb-4">
+        ${[10,15,20,30].map(s=>`<button data-action="solo-pick-seconds" data-sec="${s}" class="${c.seconds===s?'active':''}">${s}s</button>`).join('')}
+      </div>
+
+      <button class="btn btn-primary" data-action="start-solo"><img src="icons/play.png" style="filter:invert(1);">Start Solo Quiz</button>
+    </div>
+  </div>`;
+};
+
+/* ---------- Create Lobby (host setup) ---------- */
+SCREENS['create-lobby'] = () => {
+  const c = App.create;
+  const sets = getQuizSets();
+  const set = sets.find(s=>s.id===c.quizSetId) || sets[0];
+  const maxQ = set.questions.length;
+  if(c.numQuestions > maxQ) c.numQuestions = maxQ;
+  return `<div class="screen flow active">
+    ${backHeader('Create Lobby', 'home')}
+    <div class="card mb-3">
+      <label class="field-label">Quiz set</label>
+      <select class="input mb-3" id="setSelect" data-action="pick-set">
+        ${sets.map(s=>`<option value="${s.id}" ${s.id===c.quizSetId?'selected':''}>${esc(s.name)} (${s.questions.length}q)</option>`).join('')}
+      </select>
+
+      <label class="field-label">Number of questions: ${c.numQuestions}</label>
+      <input type="range" class="range mb-4" id="numQRange" min="3" max="${maxQ}" value="${c.numQuestions}">
+
+      <label class="field-label">Time per question</label>
+      <div class="segmented mb-4" id="secGroup">
+        ${[10,15,20,30].map(s=>`<button data-action="pick-seconds" data-sec="${s}" class="${c.seconds===s?'active':''}">${s}s</button>`).join('')}
+      </div>
+
+      <label class="field-label">Connection mode</label>
+      <div class="segmented mb-2" id="modeGroup">
+        <button data-action="pick-mode" data-mode="webrtc" class="${c.mode==='webrtc'?'active':''}">Hotspot (real devices)</button>
+        <button data-action="pick-mode" data-mode="local" class="${c.mode==='local'?'active':''}">Same-device test</button>
+      </div>
+      <p class="muted small mb-3">${c.mode==='webrtc'
+        ? 'Turn on your phone hotspot first. Friends connect their Wi-Fi to it, then exchange a one-time connect code with you here.'
+        : 'Opens instantly in other tabs/windows on this same browser — perfect for trying the whole flow yourself first.'}</p>
+
+      <button class="btn btn-primary" data-action="start-hosting"><img src="icons/hotspot.png" style="filter:invert(1);">Create Lobby</button>
+    </div>
+  </div>`;
+};
+
+/* ---------- Lobby (host waiting room) ---------- */
+SCREENS['lobby-host'] = () => {
+  const h = App.host;
+  const set = getQuizSets().find(s=>s.id===h.quizSetId);
+  return `<div class="screen flow active">
+    ${backHeader('Your Lobby', 'cancel-host')}
+    <div class="hero mb-3">
+      <div style="position:relative;z-index:1;">
+        <div class="eyebrow">${h.mode==='webrtc'?'Hotspot mode':'Same-device test mode'} · ${set.name}</div>
+        <div class="row between mt-2">
+          <div>
+            <div class="muted small" style="color:rgba(255,255,255,.75);">Lobby code</div>
+            <div class="big-code">${esc(h.roomCode)}</div>
+          </div>
+          <button class="icon-btn" style="background:rgba(255,255,255,.2);" data-action="copy-code" data-code="${esc(h.roomCode)}"><img src="icons/copy.png" style="filter:invert(1);"></button>
+        </div>
+      </div>
+    </div>
+
+    ${h.mode==='webrtc' ? `
+    <div class="card mb-3">
+      <div class="row between mb-2"><h4 style="margin:0;">${h.players.length>1?'Invite another player':'Add a player'}</h4></div>
+      <p class="muted small mb-2">1. Make sure your friend's Wi-Fi is connected to this hotspot (client/AP isolation OFF).<br>2. Share the invite code below with them — tap Share to send it directly via any app, Bluetooth or AirDrop.<br>3. They open Join Lobby, paste it, and send back their reply code.<br>4. Paste their reply code below to connect.</p>
+      ${h._generatingInvite ? `<div class="center small muted pulse" style="padding:10px 0;">Generating invite…</div>` : ''}
+      ${h.inviteCode ? `
+        <label class="field-label">Invite code — share this</label>
+        <div class="codebox mb-2">${esc(h.inviteCode)}</div>
+        <div class="row gap mb-3">
+          <button class="btn btn-ghost grow" data-action="copy-code" data-code="${esc(h.inviteCode)}"><img src="icons/copy.png">Copy</button>
+          <button class="btn btn-violet grow" data-action="share-code" data-code="${esc(h.inviteCode)}"><img src="icons/arrow-right.png" style="filter:invert(1);">Share</button>
+        </div>
+        <label class="field-label">Paste their reply code here</label>
+        <textarea class="input mb-2" id="answerCodeInput" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Paste the guest's reply code..."></textarea>
+        <div class="row gap">
+          <button class="btn btn-outline grow" data-action="paste-answer-code"><img src="icons/copy.png">Paste</button>
+          <button class="btn btn-violet grow" data-action="connect-guest"><img src="icons/check.png" style="filter:invert(1);">Connect player</button>
+        </div>
+      ` : (h._generatingInvite ? '' : `<button class="btn btn-outline" data-action="generate-invite"><img src="icons/plus.png">Get invite code</button>`)}
+    </div>` : `
+    <div class="card mb-3 center small muted pulse">Broadcasting on this device — waiting for players to appear in their Discover tab...</div>`}
+
+    <div class="card mb-3">
+      <h4 class="mb-2">Players (${h.players.length})</h4>
+      ${h.players.map(p=>`
+        <div class="list-row">
+          <img src="${avatarSrc(p.avatarIdx)}" class="avatar" style="width:34px;height:34px;">
+          <span class="grow" style="font-weight:700;">${esc(p.name)}</span>
+          ${p.isHost?`<span class="badge host">Host · You</span>`:`<span class="badge waiting">Connected</span>`}
+        </div>`).join('')}
+    </div>
+
+    <button class="btn btn-primary" data-action="start-battle" ${h.players.length<2?'disabled':''}>
+      <img src="icons/play.png" style="filter:invert(1);">Start Battle${h.players.length<2?' (need 2+ players)':''}
+    </button>
+  </div>`;
+};
+
+/* ---------- Join Lobby (guest setup) ---------- */
+SCREENS['join-lobby'] = () => {
+  const g = App.guest || { mode:'webrtc', hostCode:'', answerCode:'', status:'idle' };
+  App.guest = g;
+  return `<div class="screen flow active">
+    ${backHeader('Join Lobby', 'home')}
+    <div class="segmented mb-3">
+      <button data-action="pick-guest-mode" data-mode="webrtc" class="${g.mode==='webrtc'?'active':''}">Hotspot (real devices)</button>
+      <button data-action="pick-guest-mode" data-mode="local" class="${g.mode==='local'?'active':''}">Same-device test</button>
+    </div>
+
+    ${g.mode==='webrtc' ? `
+    <div class="card mb-3">
+      <p class="muted small mb-2">First connect your Wi-Fi to the host's phone hotspot (with client/AP isolation OFF). Then paste the invite code they shared with you — your reply code generates automatically.</p>
+      <label class="field-label">Invite code from host</label>
+      <textarea class="input mb-2" id="hostCodeInput" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Paste the host's invite code...">${esc(g.hostCode||'')}</textarea>
+      <button class="btn btn-outline mb-3" data-action="paste-host-code"><img src="icons/copy.png">Paste from clipboard</button>
+      ${g._generating ? `<div class="center small muted pulse mb-2">Generating reply code…</div>` : ''}
+      ${g.answerCode ? `
+        <label class="field-label">Your reply code — send this back to the host</label>
+        <div class="codebox mb-2">${esc(g.answerCode)}</div>
+        <div class="row gap mb-2">
+          <button class="btn btn-outline grow" data-action="copy-code" data-code="${esc(g.answerCode)}"><img src="icons/copy.png">Copy</button>
+          <button class="btn btn-violet grow" data-action="share-code" data-code="${esc(g.answerCode)}"><img src="icons/arrow-right.png" style="filter:invert(1);">Share</button>
+        </div>
+        <div class="alert ${g.status==='failed'?'alert-danger':'alert-info'} small">${g.status==='connected' ? '✅ Connected! Waiting for host to start the battle...' : g.status==='failed' ? 'Connection failed — check the hotspot allows device-to-device traffic (client/AP isolation off), then paste a fresh invite code.' : 'Waiting for the host to accept your reply code...'}</div>
+      ` : ''}
+    </div>` : `
+    <div class="card mb-3">
+      <p class="muted small mb-2">Enter the room code shown on the host's screen (or discover it automatically below).</p>
+      <label class="field-label">Room code</label>
+      <div class="row gap mb-2">
+        <input class="input" id="localRoomCode" maxlength="6" placeholder="ABC123" value="${esc(g.roomCode||'')}">
+        <button class="btn btn-violet btn-sm" data-action="join-local-room">Join</button>
+      </div>
+      <div class="alert alert-info small">${g.status==='connected' ? '✅ Connected! Waiting for host to start the battle...' : g.status==='connecting'?'Connecting…':'Tip: open Discover to find rooms broadcasting on this device automatically.'}</div>
+    </div>`}
+  </div>`;
+};
+
+/* ---------- Lobby (guest waiting room) ---------- */
+SCREENS['lobby-guest'] = () => {
+  const g = App.guest;
+  return `<div class="screen flow active">
+    ${backHeader('Lobby', 'cancel-guest')}
+    <div class="hero mb-3 center" style="padding:28px 20px;">
+      <div style="position:relative;z-index:1;">
+        <div class="spinner" style="margin:0 auto 14px;border-color:rgba(255,255,255,.3);border-top-color:#fff;"></div>
+        <h3 style="color:#fff;">Connected! Waiting for host…</h3>
+        <p class="small" style="color:rgba(255,255,255,.8);">The battle will start automatically the moment the host presses Start.</p>
+      </div>
+    </div>
+    <div class="card">
+      <h4 class="mb-2">Players (${(g.players||[]).length})</h4>
+      ${(g.players||[]).map(p=>`
+        <div class="list-row">
+          <img src="${avatarSrc(p.avatarIdx)}" class="avatar" style="width:34px;height:34px;">
+          <span class="grow" style="font-weight:700;">${esc(p.name)}</span>
+          ${p.isHost?`<span class="badge host">Host</span>`:(p.isMe?`<span class="badge you">You</span>`:'')}
+        </div>`).join('')}
+    </div>
+  </div>`;
+};
+
+/* ---------- Battle (live quiz) ---------- */
+SCREENS.battle = () => {
+  const b = App.battle;
+  if(!b) return `<div class="screen active center"><div class="spinner" style="margin:auto;"></div></div>`;
+  const total = b.totalQuestions;
+  const pct = ((b.idx)/total)*100;
+  const timePct = b.seconds ? Math.max(0,(b.timeLeft/b.seconds)*100) : 0;
+  return `<div class="screen flow active">
+    <div class="row between mb-2">
+      <span class="badge">Question ${Math.min(b.idx+1,total)} / ${total}</span>
+      <span class="row gap" style="font-weight:800;color:var(--em600);"><img src="icons/bolt.png" style="width:16px;height:16px;">${b.myScore||0}</span>
+    </div>
+    <div class="progress-track mb-3"><div class="progress-fill" style="width:${pct}%;"></div></div>
+
+    ${b.phase==='waiting-next' ? `
+      <div class="card card-lg center">
+        <div class="spinner" style="margin:0 auto 12px;"></div>
+        <p class="muted small">Next question coming up…</p>
+      </div>` : b.phase==='question' ? `
+      <div class="card card-lg mb-3">
+        <div class="row between mb-3">
+          <span class="timerbig" style="color:${b.timeLeft<=3?'var(--coral600)':'var(--v600)'};">${fmtTime(b.timeLeft)}</span>
+        </div>
+        <div class="progress-track mb-4"><div class="progress-fill timer ${b.timeLeft<=3?'low':''}" style="width:${timePct}%;"></div></div>
+        <p class="qtext mb-3">${renderBlankText(b.currentText, b.answered)}</p>
+        <div class="options-grid">
+          ${(b.options||[]).map((opt,i)=>`
+            <button class="option-btn${b.answered&&opt===b.myAnswerDraft?' selected':''}" data-action="select-answer" data-option="${esc(opt)}" ${b.answered?'disabled':''}>
+              <span class="opt-letter">${String.fromCharCode(65+i)}</span><span class="opt-text">${esc(opt)}</span>
+            </button>`).join('')}
+        </div>
+        ${b.answered?'<p class="muted small center mt-2">Answer locked in — waiting for the timer…</p>':''}
+      </div>` : `
+      <div class="card card-lg">
+        <div class="center mb-3">
+          <img src="icons/${b.lastCorrect?'check-circle':'target'}.png" style="width:56px;height:56px;margin:0 auto 10px;">
+          <h3 style="color:${b.lastCorrect?'var(--mint600)':'var(--coral600)'};">${b.lastCorrect?'Correct!':'Not quite'}</h3>
+          <p class="row gap center" style="justify-content:center;font-weight:800;color:var(--em600);"><img src="icons/bolt.png" style="width:16px;height:16px;">+${b.lastPoints||0} pts</p>
+        </div>
+        <div class="options-grid">
+          ${(b.options||[]).map((opt,i)=>{
+            let cls='option-btn';
+            if(opt===b.lastCorrectAnswer) cls+=' correct';
+            else if(opt===b.myAnswerDraft) cls+=' wrong';
+            return `<button class="${cls}" disabled><span class="opt-letter">${String.fromCharCode(65+i)}</span><span class="opt-text">${esc(opt)}</span></button>`;
+          }).join('')}
+        </div>
+      </div>`}
+
+    <div class="card mt-3">
+      <h4 class="mb-2 small">Live standings</h4>
+      ${(b.players||[]).slice().sort((a,c)=>c.score-a.score).map((p,i)=>`
+        <div class="list-row">
+          <span class="badge" style="width:20px;text-align:center;">${i+1}</span>
+          <img src="${avatarSrc(p.avatarIdx)}" style="width:24px;height:24px;border-radius:50%;">
+          <span class="grow small">${esc(p.name)}</span>
+          <span class="small" style="font-weight:800;">${p.score}</span>
+        </div>`).join('')}
+    </div>
+  </div>`;
+};
+function renderBlankText(text, answered){
+  return esc(text).replace(/_{3,}/g, `<span style="display:inline-block;min-width:70px;border-bottom:3px solid var(--v400);">&nbsp;</span>`);
+}
+
+/* ---------- Results ---------- */
+SCREENS.results = () => {
+  const r = App._lastResults;
+  if(!r) return `<div class="screen active"><p>No results.</p></div>`;
+  return `<div class="screen flow active">
+    <div class="center mb-3">
+      <img src="icons/trophy.png" style="width:64px;height:64px;margin:0 auto 8px;">
+      <h2>Battle complete!</h2>
+      <p class="muted">${esc(r.lobbyName)}</p>
+    </div>
+    <div class="card mb-3">
+      ${r.leaderboard.map((p,i)=>`
+        <div class="list-row">
+          ${i<3?`<img class="rank-medal" src="icons/medal-${i===0?'gold':i===1?'silver':'bronze'}.png">`:`<div class="rank-medal center" style="line-height:30px;font-weight:800;color:var(--ink500);">${i+1}</div>`}
+          <img src="${avatarSrc(p.avatarIdx)}" class="avatar" style="width:38px;height:38px;">
+          <div class="grow">
+            <div style="font-weight:800;">${esc(p.name)}${p.isMe?' <span class="badge you">You</span>':''}</div>
+            <div class="muted small">${p.correct}/${p.total} correct</div>
+          </div>
+          <div style="font-weight:900;color:var(--em600);">${p.score}</div>
+        </div>`).join('')}
+    </div>
+    <button class="btn btn-violet mb-2" data-action="goto" data-screen="home">Back to Home</button>
+    <button class="btn btn-outline" data-action="goto" data-screen="rankings">View full rankings</button>
+  </div>`;
+};
+
+/* =========================================================================
+   HELPERS
+   ========================================================================= */
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+function shuffleArray(arr){
+  const a = arr.slice();
+  for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+function genOptions(qz, pool){
+  const correct = qz.answers[0];
+  const acceptedLower = qz.answers.map(a=>a.toLowerCase());
+  let candidates = pool.filter(o=>o.id!==qz.id).map(o=>o.answers[0]).filter(a=>!acceptedLower.includes(a.toLowerCase()));
+  candidates = shuffleArray([...new Set(candidates)]).slice(0,3);
+  if(candidates.length<3){
+    let extra = [];
+    getQuizSets().forEach(s=>s.questions.forEach(q2=>{ if(q2.id!==qz.id) extra.push(q2.answers[0]); }));
+    extra = shuffleArray([...new Set(extra)].filter(a=>!acceptedLower.includes(a.toLowerCase()) && !candidates.includes(a)));
+    while(candidates.length<3 && extra.length) candidates.push(extra.pop());
+  }
+  return shuffleArray([correct, ...candidates]);
+}
+function genRoomCode(){
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let c=''; for(let i=0;i<6;i++) c += chars[Math.floor(Math.random()*chars.length)];
+  return c;
+}
+
+/* =========================================================================
+   HOST-SIDE connection handling
+   ========================================================================= */
+function broadcastRoster(h){
+  const roster = h.players.map(p=>({ id:p.id, name:p.name, avatarIdx:p.avatarIdx, isHost:p.isHost }));
+  h.transport.broadcast({ t:'players', players: roster });
+}
+function setupHostHandlers(h){
+  h.transport.on('peer-join', ()=>{
+    if(App.screen==='lobby-host') render();
+  });
+  h.transport.on('peer-leave', (peerId)=>{
+    h.players = h.players.filter(p=>p.id!==peerId);
+    broadcastRoster(h);
+    if(App.screen==='lobby-host') render();
+  });
+  h.transport.on('peer-failed', ()=>{
+    toast('A player couldn\'t connect. Make sure client/AP isolation is OFF on the hotspot, then generate a fresh invite.');
+    if(App.screen==='lobby-host') render();
+  });
+  h.transport.on('message', (peerId, msg)=>{
+    if(!msg) return;
+    if(msg.t==='hello'){
+      if(!h.players.find(p=>p.id===peerId)){
+        h.players.push({ id:peerId, name:(msg.name||'Player').slice(0,18), avatarIdx: msg.avatarIdx||0, isHost:false, connected:true });
+      }
+      broadcastRoster(h);
+      if(App.screen==='lobby-host') render();
+    }
+  });
+}
+
+/* =========================================================================
+   GUEST-SIDE connection handling
+   ========================================================================= */
+let guestTimerHandle = null;
+function setupGuestHandlers(g){
+  g.transport.on('open', ()=>{
+    g.status = 'connected';
+    g.transport.sendToHost({ t:'hello', name: App.profile.name, avatarIdx: App.profile.avatarIdx });
+    toast('Connected to host!');
+    if(App.screen==='join-lobby') goTo('lobby-guest'); else render();
+  });
+  g.transport.on('close', ()=>{
+    toast('Disconnected from host');
+    if(['lobby-guest','battle'].includes(App.screen)) goTo('home');
+  });
+  g.transport.on('failed', ()=>{
+    g.status = 'failed';
+    toast('Couldn\'t connect. Make sure you\'re on the host\'s hotspot Wi-Fi and client/AP isolation is OFF, then get a fresh code.');
+    if(App.screen==='join-lobby') render();
+  });
+  g.transport.on('message', (peerId, msg)=>{
+    if(!msg) return;
+    if(msg.t==='players'){
+      const myId = g.transport.myId;
+      g.players = msg.players.map(p=>({ ...p, isMe: p.id===myId }));
+      if(App.screen==='lobby-guest') render();
+    } else if(msg.t==='question'){
+      clearInterval(guestTimerHandle);
+      App.battle = App.battle || {};
+      Object.assign(App.battle, {
+        isHost:false, idx: msg.idx, totalQuestions: msg.total, phase:'question',
+        currentText: msg.text, seconds: msg.seconds, timeLeft: msg.seconds, options: msg.options||[],
+        answered:false, myAnswerDraft:'', players: (g.players||[]).map(p=>({id:p.id,name:p.name,avatarIdx:p.avatarIdx,score:App.battle.players?(App.battle.players.find(x=>x.id===p.id)||{}).score||0:0})),
+      });
+      if(App.screen!=='battle') goTo('battle'); else render();
+      startGuestCountdown(g);
+    } else if(msg.t==='result'){
+      App.battle.phase='reveal';
+      App.battle.lastCorrect = msg.correct;
+      App.battle.lastCorrectAnswer = msg.correctAnswer;
+      App.battle.lastPoints = msg.points;
+      App.battle.myScore = msg.totalScore;
+      const me = App.battle.players.find(p=>p.id===g.transport.myId);
+      if(me) me.score = msg.totalScore;
+      render();
+    } else if(msg.t==='final'){
+      const myId = g.transport.myId;
+      const leaderboard = msg.leaderboard.map(p=>({ ...p, isMe: p.id===myId }));
+      recordBattleResults(g.lobbyName||'Battle', msg.leaderboard);
+      App._lastResults = { lobbyName: g.lobbyName||'Battle', leaderboard };
+      g.transport.close();
+      goTo('results');
+    }
+  });
+}
+function startGuestCountdown(g){
+  clearInterval(guestTimerHandle);
+  guestTimerHandle = setInterval(()=>{
+    if(App.battle.phase!=='question'){ clearInterval(guestTimerHandle); return; }
+    App.battle.timeLeft -= 1;
+    if(App.battle.timeLeft<=0){
+      App.battle.timeLeft = 0;
+      if(!App.battle.answered){
+        App.battle.answered = true;
+        g.transport.sendToHost({ t:'answer', idx: App.battle.idx, text: App.battle.myAnswerDraft||'', timeLeftMs: 0 });
+      }
+      clearInterval(guestTimerHandle);
+    }
+    render();
+  }, 1000);
+}
+
+/* =========================================================================
+   BATTLE ENGINE (host is authoritative; also plays as a contestant)
+   ========================================================================= */
+async function startBattleAsSolo(quizSetId, numQuestions, seconds){
+  const set = getQuizSets().find(s=>s.id===quizSetId);
+  const questions = shuffleArray(set.questions).slice(0, numQuestions);
+  const me = { id:'ME', name:App.profile.name, avatarIdx:App.profile.avatarIdx };
+  const scoreState = { score:0, correct:0, total:0 };
+
+  App.battle = {
+    isHost:true, isSolo:true, totalQuestions: questions.length, idx:-1, phase:'waiting-next', seconds, timeLeft: seconds,
+    myScore:0, answered:false, myAnswerDraft:'',
+    players: [{ id:me.id, name:me.name, avatarIdx:me.avatarIdx, score:0 }],
+  };
+  goTo('battle');
+
+  for(let i=0;i<questions.length;i++){
+    const qz = questions[i];
+    const opts = genOptions(qz, set.questions);
+
+    App.battle.idx=i; App.battle.phase='question'; App.battle.currentText=qz.text; App.battle.options=opts;
+    App.battle.timeLeft=seconds; App.battle.answered=false; App.battle.myAnswerDraft='';
+    App.battle._hostAnswerText=''; App.battle._hostAnswerTimeLeftMs=0;
+    render();
+
+    let tLeft = seconds;
+    await new Promise(resolve=>{
+      const timer = setInterval(()=>{
+        tLeft -= 1;
+        App.battle.timeLeft = Math.max(0, tLeft);
+        if(App.battle.phase==='question') render();
+        if(tLeft<=0){ clearInterval(timer); resolve(); }
+      }, 1000);
+    });
+
+    const given = App.battle._hostAnswerText || '';
+    const timeLeftMs = App.battle._hostAnswerTimeLeftMs || 0;
+    const correct = answerMatches(given, qz.answers);
+    const points = correct ? Math.max(100, Math.round(1000 * (timeLeftMs/(seconds*1000)))) : 0;
+    scoreState.score += points; scoreState.total += 1; if(correct) scoreState.correct += 1;
+
+    App.battle.phase='reveal';
+    App.battle.lastCorrect = correct;
+    App.battle.lastCorrectAnswer = qz.answers[0];
+    App.battle.lastPoints = points;
+    App.battle.myScore = scoreState.score;
+    App.battle.players = [{ id:me.id, name:me.name, avatarIdx:me.avatarIdx, score:scoreState.score }];
+    render();
+
+    await sleep(2200);
+    App.battle.phase='waiting-next';
+    if(App.screen==='battle') render();
+    await sleep(300);
+  }
+
+  const leaderboard = [{ id:me.id, name:me.name, avatarIdx:me.avatarIdx, score:scoreState.score, correct:scoreState.correct, total:scoreState.total, isMe:true }];
+  const lobbyName = 'Solo Practice — '+set.name;
+  recordBattleResults(lobbyName, leaderboard);
+  App._lastResults = { lobbyName, leaderboard };
+  goTo('results');
+}
+async function startBattleAsHost(){
+  const h = App.host;
+  const set = getQuizSets().find(s=>s.id===h.quizSetId);
+  const questions = shuffleArray(set.questions).slice(0, h.numQuestions);
+  const seconds = h.seconds;
+  const players = h.players;
+  const scores = {};
+  players.forEach(p => scores[p.id] = { score:0, correct:0, total:0 });
+
+  App.battle = {
+    isHost:true, totalQuestions: questions.length, idx:-1, phase:'waiting-next', seconds, timeLeft: seconds,
+    myScore:0, answered:false, myAnswerDraft:'',
+    players: players.map(p=>({ id:p.id, name:p.name, avatarIdx:p.avatarIdx, score:0 })),
+  };
+  h.transport.broadcast({ t:'battle-starting' });
+  goTo('battle');
+
+  for(let i=0;i<questions.length;i++){
+    const qz = questions[i];
+    const opts = genOptions(qz, set.questions);
+    h.transport.broadcast({ t:'question', idx:i, total:questions.length, text:qz.text, seconds, options:opts });
+
+    App.battle.idx=i; App.battle.phase='question'; App.battle.currentText=qz.text; App.battle.options=opts;
+    App.battle.timeLeft=seconds; App.battle.answered=false; App.battle.myAnswerDraft='';
+    App.battle._hostAnswerText=''; App.battle._hostAnswerTimeLeftMs=0;
+    render();
+
+    const pending = {};
+    const collector = (peerId, msg) => {
+      if(msg && msg.t==='answer' && msg.idx===i && pending[peerId]===undefined){
+        pending[peerId] = { text: msg.text||'', timeLeftMs: msg.timeLeftMs||0 };
+      }
+    };
+    h.transport.on('message', collector);
+
+    let tLeft = seconds;
+    await new Promise(resolve=>{
+      const timer = setInterval(()=>{
+        tLeft -= 1;
+        App.battle.timeLeft = Math.max(0, tLeft);
+        if(App.battle.phase==='question') render();
+        if(tLeft<=0){ clearInterval(timer); resolve(); }
+      }, 1000);
+    });
+
+    const hostAnswerText = App.battle._hostAnswerText || '';
+    const hostTimeLeftMs = App.battle._hostAnswerTimeLeftMs || 0;
+
+    const results = {};
+    players.forEach(p=>{
+      const given = p.isHost ? hostAnswerText : (pending[p.id] ? pending[p.id].text : '');
+      const timeLeftMs = p.isHost ? hostTimeLeftMs : (pending[p.id] ? pending[p.id].timeLeftMs : 0);
+      const correct = answerMatches(given, qz.answers);
+      const points = correct ? Math.max(100, Math.round(1000 * (timeLeftMs/(seconds*1000)))) : 0;
+      scores[p.id].score += points; scores[p.id].total += 1; if(correct) scores[p.id].correct += 1;
+      results[p.id] = { correct, points };
+    });
+    players.forEach(p=>{
+      if(!p.isHost) h.transport.send(p.id, { t:'result', idx:i, correct:results[p.id].correct, points:results[p.id].points, correctAnswer: qz.answers[0], totalScore: scores[p.id].score });
+    });
+
+    App.battle.phase='reveal';
+    App.battle.lastCorrect = results[players.find(p=>p.isHost).id].correct;
+    App.battle.lastCorrectAnswer = qz.answers[0];
+    App.battle.lastPoints = results[players.find(p=>p.isHost).id].points;
+    App.battle.myScore = scores[players.find(p=>p.isHost).id].score;
+    App.battle.players = players.map(p=>({ id:p.id, name:p.name, avatarIdx:p.avatarIdx, score:scores[p.id].score }));
+    render();
+
+    await sleep(2200);
+    App.battle.phase='waiting-next';
+    if(App.screen==='battle') render();
+    await sleep(300);
+  }
+
+  const leaderboard = players
+    .map(p=>({ id:p.id, name:p.name, avatarIdx:p.avatarIdx, score:scores[p.id].score, correct:scores[p.id].correct, total:scores[p.id].total, isMe: !!p.isHost }))
+    .sort((a,b)=>b.score-a.score);
+  h.transport.broadcast({ t:'final', leaderboard: leaderboard.map(({isMe,...rest})=>rest) });
+  recordBattleResults(h.lobbyName, leaderboard.map(({isMe,...rest})=>rest));
+  App._lastResults = { lobbyName: h.lobbyName, leaderboard };
+  if(h.mode==='local') h.transport.stopAnnouncing();
+  h.transport.close();
+  goTo('results');
+}
+
+/* =========================================================================
+   ACTIONS (data-action click handlers)
+   ========================================================================= */
+const actions = {
+  'goto'(el){ goTo(el.dataset.screen); },
+  'back'(el){
+    const dest = el.dataset.back;
+    if(dest==='cancel-host'){ if(App.host){ if(App.host.mode==='local') App.host.transport.stopAnnouncing(); App.host.transport.close(); App.host=null; } goTo('home'); }
+    else if(dest==='cancel-guest'){ if(App.guest && App.guest.transport){ App.guest.transport.close(); } App.guest=null; goTo('home'); }
+    else goTo(dest||'home');
+  },
+  'pick-avatar'(el){
+    const nameVal = $('#nameInput') ? $('#nameInput').value : (App._draftProfile?App._draftProfile.name:'');
+    App._draftProfile = { name: nameVal, avatarIdx: parseInt(el.dataset.idx) };
+    render();
+  },
+  'finish-onboarding'(){
+    const name = ($('#nameInput').value||'').trim();
+    if(!name){ toast('Please enter a name'); return; }
+    const avatarIdx = App._draftProfile ? App._draftProfile.avatarIdx : 0;
+    App.profile = { id: uid(), name, avatarIdx };
+    saveProfile(App.profile);
+    goTo('home');
+  },
+  'pick-avatar-edit'(el){
+    const nameVal = $('#editName') ? $('#editName').value : App.profile.name;
+    App.profile = { ...App.profile, name: nameVal, avatarIdx: parseInt(el.dataset.idx) };
+    render();
+  },
+  'save-profile'(){
+    const name = ($('#editName').value||'').trim();
+    if(!name){ toast('Please enter a name'); return; }
+    App.profile = { ...App.profile, name };
+    saveProfile(App.profile);
+    toast('Profile saved');
+    goTo('home');
+  },
+  'reset-data'(){
+    if(!confirm('This will erase your profile, quiz sets, rankings and history from this device. Continue?')) return;
+    Object.keys(localStorage).filter(k=>k.startsWith('qm_')).forEach(k=>localStorage.removeItem(k));
+    location.reload();
+  },
+  'copy-code'(el){ copyText(el.dataset.code); },
+  'share-code'(el){ shareOrCopy(el.dataset.code, 'QuizMe connect code').then(shared=>{ if(!shared) toast('Code copied — paste it into your message app'); }); },
+  'paste-answer-code'(){
+    if(!navigator.clipboard || !navigator.clipboard.readText){ toast('Long-press the box and paste manually'); return; }
+    navigator.clipboard.readText().then(text=>{
+      const box = $('#answerCodeInput');
+      if(box && text){ box.value = text.trim(); actions['connect-guest'](); }
+    }).catch(()=>toast('Long-press the box and paste manually'));
+  },
+  'paste-host-code'(){
+    if(!navigator.clipboard || !navigator.clipboard.readText){ toast('Long-press the box and paste manually'); return; }
+    navigator.clipboard.readText().then(text=>{
+      const box = $('#hostCodeInput');
+      if(box && text){ box.value = text.trim(); App.guest.hostCode = text.trim(); actions['join-generate-answer'](); }
+    }).catch(()=>toast('Long-press the box and paste manually'));
+  },
+
+  /* ---- quiz sets ---- */
+  'new-quizset'(){ App.editingSetId=null; App._quizDraft=null; goTo('quizedit'); },
+  'edit-quizset'(el){ App.editingSetId=el.dataset.id; App._quizDraft=null; goTo('quizedit'); },
+  'delete-quizset'(el){
+    if(!confirm('Delete this quiz set?')) return;
+    saveQuizSets(getQuizSets().filter(s=>s.id!==el.dataset.id));
+    render();
+  },
+  'duplicate-quizset'(el){
+    const src = getQuizSets().find(s=>s.id===el.dataset.id);
+    const clone = JSON.parse(JSON.stringify(src));
+    clone.id = uid(); clone.builtin=false; clone.name = src.name+' (copy)';
+    App.editingSetId = clone.id; App._quizDraft = clone;
+    const sets = getQuizSets(); sets.push(clone); saveQuizSets(sets);
+    render();
+  },
+  'add-question'(){
+    App._quizDraft.questions.push({ id: uid(), text:'', answers:[''] });
+    render();
+  },
+  'remove-question'(el){
+    App._quizDraft.questions.splice(parseInt(el.dataset.i),1);
+    render();
+  },
+  'save-quizset'(){
+    const draft = App._quizDraft;
+    draft.name = ($('#qsName').value||'').trim() || 'Untitled Set';
+    draft.questions = draft.questions
+      .map((q,i)=>({ id:q.id, text: $(`[data-action="edit-qtext"][data-i="${i}"]`).value.trim(), answers: $(`[data-action="edit-qanswers"][data-i="${i}"]`).value.split(',').map(s=>s.trim()).filter(Boolean) }))
+      .filter(q=>q.text && q.answers.length && /_{3,}/.test(q.text));
+    if(draft.questions.length < 2){ toast('Add at least 2 questions with a ____ blank and an answer'); return; }
+    let sets = getQuizSets();
+    const idx = sets.findIndex(s=>s.id===draft.id);
+    if(idx>=0) sets[idx]=draft; else sets.push(draft);
+    saveQuizSets(sets);
+    App._quizDraft=null;
+    toast('Quiz set saved');
+    goTo('quizsets');
+  },
+
+  /* ---- solo quiz (practice) ---- */
+  'solo-pick-seconds'(el){ App.solo.seconds = parseInt(el.dataset.sec); render(); },
+  'start-solo'(){
+    const quizSetId = $('#soloSetSelect') ? $('#soloSetSelect').value : App.solo.quizSetId;
+    const numQuestions = $('#soloNumQRange') ? parseInt($('#soloNumQRange').value) : App.solo.numQuestions;
+    App.solo.quizSetId = quizSetId; App.solo.numQuestions = numQuestions;
+    startBattleAsSolo(quizSetId, numQuestions, App.solo.seconds);
+  },
+
+  /* ---- create lobby (host) ---- */
+  'pick-seconds'(el){ App.create.seconds = parseInt(el.dataset.sec); render(); },
+  'pick-mode'(el){ App.create.mode = el.dataset.mode; render(); },
+  'start-hosting'(){
+    const quizSetId = $('#setSelect') ? $('#setSelect').value : App.create.quizSetId;
+    const numQuestions = $('#numQRange') ? parseInt($('#numQRange').value) : App.create.numQuestions;
+    const seconds = App.create.seconds;
+    const mode = App.create.mode;
+    const roomCode = genRoomCode();
+    const lobbyName = `${App.profile.name}'s Lobby`;
+    const transport = mode==='webrtc' ? createWebRTCHost() : createLocalHost(roomCode);
+    App.host = {
+      transport, lobbyName, quizSetId, numQuestions, seconds, mode, roomCode, inviteCode:null,
+      players: [{ id:'HOST', name:App.profile.name, avatarIdx:App.profile.avatarIdx, isHost:true, connected:true }],
+    };
+    setupHostHandlers(App.host);
+    if(mode==='local'){
+      App.host.transport.startAnnouncing(()=>({
+        hostName: App.profile.name,
+        quizSetName: getQuizSets().find(s=>s.id===quizSetId).name,
+        playerCount: App.host.players.length,
+        roomCode,
+      }));
+    }
+    rememberLobby({ code: roomCode, name: lobbyName });
+    goTo('lobby-host');
+    if(mode==='webrtc') actions['generate-invite']();
+  },
+  'generate-invite'(){
+    App.host._generatingInvite = true;
+    render();
+    App.host.transport.createInvite().then(({code})=>{
+      App.host.inviteCode = code; App.host._generatingInvite = false; render();
+    }).catch(e=>{ App.host._generatingInvite = false; toast('Could not create invite: '+e.message); render(); });
+  },
+  'connect-guest'(){
+    const code = ($('#answerCodeInput').value||'').trim();
+    if(!code){ toast('Paste the guest\'s reply code first'); return; }
+    App.host.transport.acceptAnswerCode(code).then(()=>{
+      toast('Connecting…');
+      App.host.inviteCode = null;
+      render();
+    }).catch(e=>toast(e.message));
+  },
+  'start-battle'(){
+    if(App.host.players.length < 2){ toast('Need at least 2 players to start'); return; }
+    startBattleAsHost();
+  },
+
+  /* ---- join lobby (guest) ---- */
+  'pick-guest-mode'(el){ App.guest = { ...(App.guest||{}), mode: el.dataset.mode, status:'idle' }; render(); },
+  'join-generate-answer'(){
+    const code = ($('#hostCodeInput') ? $('#hostCodeInput').value : (App.guest&&App.guest.hostCode)||'').trim();
+    if(!code){ toast('Paste the host\'s invite code first'); return; }
+    const g = App.guest = App.guest || { mode:'webrtc' };
+    if(g._lastCode === code && (g.answerCode || g._generating)) return; // avoid duplicate work on repeated input events
+    g._lastCode = code; g._generating = true; g.status='idle';
+    render();
+    g.transport = createWebRTCGuest();
+    setupGuestHandlers(g);
+    g.transport.acceptInviteCode(code).then(answerCode=>{
+      g.hostCode = code; g.answerCode = answerCode; g.status='waiting'; g._generating=false;
+      render();
+      copyText(answerCode);
+    }).catch(e=>{ g._generating=false; toast(e.message); render(); });
+  },
+  'join-local-room'(){
+    const roomCode = ($('#localRoomCode').value||'').trim().toUpperCase();
+    if(!roomCode){ toast('Enter a room code'); return; }
+    joinLocalRoom(roomCode);
+  },
+  'discover-join-local'(el){ joinLocalRoom(el.dataset.room); goTo('join-lobby'); },
+
+  /* ---- battle ---- */
+  'select-answer'(el){
+    const b = App.battle;
+    if(!b || b.answered) return;
+    const val = el.dataset.option;
+    b.answered = true;
+    b.myAnswerDraft = val;
+    const timeLeftMs = (b.timeLeft||0) * 1000;
+    if(b.isHost){
+      App.battle._hostAnswerText = val;
+      App.battle._hostAnswerTimeLeftMs = timeLeftMs;
+    } else if(App.guest && App.guest.transport){
+      App.guest.transport.sendToHost({ t:'answer', idx: b.idx, text: val, timeLeftMs });
+    }
+    render();
+  },
+};
+
+function joinLocalRoom(roomCode){
+  const g = App.guest = App.guest || { mode:'local' };
+  g.mode='local'; g.roomCode = roomCode; g.status='connecting'; g.lobbyName = 'Lobby '+roomCode;
+  g.transport = createLocalGuest(roomCode, { name:App.profile.name, avatarIdx:App.profile.avatarIdx });
+  setupGuestHandlers(g);
+  g.transport.join();
+  rememberLobby({ code: roomCode, name: g.lobbyName });
+  render();
+}
+
+/* =========================================================================
+   EVENT DELEGATION
+   ========================================================================= */
+document.addEventListener('click', (e)=>{
+  const el = e.target.closest('[data-action]');
+  if(!el) return;
+  const fn = actions[el.dataset.action];
+  if(fn) fn(el, e);
+});
+document.addEventListener('change', (e)=>{
+  if(e.target.id==='setSelect'){
+    App.create.quizSetId = e.target.value;
+    const set = getQuizSets().find(s=>s.id===e.target.value);
+    if(set) App.create.numQuestions = Math.min(App.create.numQuestions, set.questions.length);
+    render();
+  } else if(e.target.id==='soloSetSelect'){
+    App.solo.quizSetId = e.target.value;
+    const set = getQuizSets().find(s=>s.id===e.target.value);
+    if(set) App.solo.numQuestions = Math.min(App.solo.numQuestions, set.questions.length);
+    render();
+  }
+});
+document.addEventListener('input', (e)=>{
+  const t = e.target;
+  if(t.id==='numQRange'){
+    App.create.numQuestions = parseInt(t.value);
+    const lbl = t.previousElementSibling;
+    if(lbl) lbl.textContent = 'Number of questions: '+t.value;
+  } else if(t.id==='soloNumQRange'){
+    App.solo.numQuestions = parseInt(t.value);
+    const lbl = t.previousElementSibling;
+    if(lbl) lbl.textContent = 'Number of questions: '+t.value;
+  } else if(t.dataset && t.dataset.action==='edit-qtext'){
+    App._quizDraft.questions[parseInt(t.dataset.i)].text = t.value;
+  } else if(t.dataset && t.dataset.action==='edit-qanswers'){
+    App._quizDraft.questions[parseInt(t.dataset.i)].answers = t.value.split(',').map(s=>s.trim()).filter(Boolean);
+  } else if(t.id==='qsName' && App._quizDraft){
+    App._quizDraft.name = t.value;
+  } else if(t.id==='hostCodeInput'){
+    App.guest = App.guest || { mode:'webrtc' };
+    App.guest.hostCode = t.value;
+    clearTimeout(window._hostCodeDebounce);
+    window._hostCodeDebounce = setTimeout(()=>{
+      if((t.value||'').trim().length > 20) actions['join-generate-answer']();
+    }, 500);
+  }
+});
+document.addEventListener('click', (e)=>{
+  const nav = e.target.closest('.navbtn');
+  if(nav) goTo(nav.dataset.nav);
+});
+
+/* =========================================================================
+   INIT
+   ========================================================================= */
+function init(){
+  const p = getProfile();
+  if(p){ App.profile = p; goTo('home'); } else { goTo('onboarding'); }
+  scanForLocalLobbies((data)=>{
+    if(data.t==='announce') App.discoveredLocal[data.roomCode] = { ...data, seenAt: nowMs() };
+    else if(data.t==='closed') delete App.discoveredLocal[data.roomCode];
+    if(App.screen==='discover') render();
+  });
+  setInterval(()=>{ if(App.screen==='discover') render(); }, 1500);
+  registerServiceWorker();
+}
+
+/* ---------- PWA: service worker registration ---------- */
+function registerServiceWorker(){
+  if(!('serviceWorker' in navigator)) return; // unsupported browser — app still works, just not installable
+  if(location.protocol === 'file:') return;   // SW requires http(s)/localhost; opened straight from disk, skip quietly
+  navigator.serviceWorker.register('./sw.js').then((reg) => {
+    reg.addEventListener('updatefound', () => {
+      const installing = reg.installing;
+      if(!installing) return;
+      installing.addEventListener('statechange', () => {
+        if(installing.state === 'installed' && navigator.serviceWorker.controller){
+          toast('Update ready — refresh to get the latest version');
+        }
+      });
+    });
+  }).catch((err) => console.warn('QuizMe: service worker registration failed', err));
+}
+document.addEventListener('DOMContentLoaded', init);
+</script>
+
+</body>
+</html>

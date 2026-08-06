@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: quizme-offline
+    runtime: static
+    buildCommand: "echo 'static site, nothing to build'"
+    staticPublishPath: .
+    headers:
+      # Always let browsers check for a new service worker / manifest instead
+      # of caching the old one indefinitely — this is what lets an update you
+      # push here actually reach devices that already installed the app.
+      - path: /sw.js
+        name: Cache-Control
+        value: no-cache
+      - path: /manifest.json
+        name: Cache-Control
+        value: no-cache
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+    routes: []
