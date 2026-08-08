@@ -180,6 +180,24 @@ textarea.input{resize:vertical;min-height:70px;font-family:ui-monospace,Consolas
 .codebox-wrap{position:relative;}
 .code-chunked{word-spacing:2px;}
 
+.qr-card{background:var(--surface);border:2px solid var(--v100);border-radius:var(--r-md);padding:16px;text-align:center;}
+.qr-wrap{width:100%;max-width:230px;margin:0 auto;border-radius:var(--r-sm);overflow:hidden;cursor:pointer;}
+.qr-wrap svg{display:block;width:100%;height:auto;}
+.qr-wrap.enlarged{max-width:min(88vw,420px);}
+
+.scanner-overlay{position:fixed;inset:0;background:#000;z-index:200;display:flex;flex-direction:column;}
+.scanner-overlay video{flex:1;width:100%;height:100%;object-fit:cover;background:#000;}
+.scanner-frame{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(70vw,320px);height:min(70vw,320px);
+  border:3px solid rgba(255,255,255,.85);border-radius:var(--r-md);box-shadow:0 0 0 2000px rgba(0,0,0,.35);pointer-events:none;}
+.scanner-topbar{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;
+  padding:14px 16px;z-index:2;}
+.scanner-topbar .icon-btn{background:rgba(255,255,255,.18);}
+.scanner-status{position:absolute;left:0;right:0;bottom:28px;text-align:center;color:#fff;font-size:.85rem;font-weight:600;
+  padding:0 24px;z-index:2;}
+.scanner-fallback{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+  padding:28px;text-align:center;color:#fff;}
+.scanner-fallback img{width:40px;height:40px;filter:invert(1);opacity:.85;}
+
 ::-webkit-scrollbar{width:6px;height:6px;}
 ::-webkit-scrollbar-thumb{background:var(--v200);border-radius:4px;}
 </style>
@@ -409,6 +427,521 @@ async function unpackCode(code){
   }
   throw new Error('That code looks invalid — copy it exactly, with nothing missing.');
 }
+/* ---------- QR codes (offline, no deps) ---------- */
+/* Minimal QR Code encoder — byte mode only, versions 1-40, EC levels L/M/Q/H.
+   Pure implementation of ISO/IEC 18004 for embedding with no external deps. */
+(function(root, factory){
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.QREnc = factory();
+})(typeof self !== 'undefined' ? self : this, function(){
+
+// ---------- GF(256) tables for Reed-Solomon ----------
+const GF_EXP = new Uint8Array(512);
+const GF_LOG = new Uint8Array(256);
+(function initGF(){
+  let x = 1;
+  for(let i=0;i<255;i++){
+    GF_EXP[i] = x;
+    GF_LOG[x] = i;
+    x <<= 1;
+    if(x & 0x100) x ^= 0x11D;
+  }
+  for(let i=255;i<512;i++) GF_EXP[i] = GF_EXP[i-255];
+})();
+function gfMul(a,b){
+  if(a===0||b===0) return 0;
+  return GF_EXP[GF_LOG[a]+GF_LOG[b]];
+}
+// Generator polynomial for n EC codewords
+function rsGeneratorPoly(n){
+  let poly = [1];
+  for(let i=0;i<n;i++){
+    const next = new Array(poly.length+1).fill(0);
+    for(let j=0;j<poly.length;j++){
+      next[j] ^= gfMul(poly[j], GF_EXP[i]);
+      next[j+1] ^= poly[j];
+    }
+    poly = next;
+  }
+  return poly; // highest degree first
+}
+function rsEncode(data, ecLen){
+  // rsGeneratorPoly returns coefficients ascending by degree (index0 = x^0).
+  // The division loop below needs descending order (index0 = leading/monic term)
+  // so it lines up with the current byte being eliminated at res[i].
+  const gen = rsGeneratorPoly(ecLen).slice().reverse();
+  const res = new Uint8Array(data.length + ecLen);
+  res.set(data, 0);
+  for(let i=0;i<data.length;i++){
+    const coef = res[i];
+    if(coef===0) continue;
+    for(let j=0;j<gen.length;j++){
+      res[i+j] ^= gfMul(gen[j], coef);
+    }
+  }
+  return res.slice(data.length, data.length+ecLen);
+}
+
+// ---------- Version capacity table (EC level L) ----------
+// [totalCodewords, ecPerBlock, g1Blocks, g1DataCw, g2Blocks, g2DataCw]
+const VTABLE_L = {
+  1:[26,7,1,19,0,0],   2:[44,10,1,34,0,0],   3:[70,15,1,55,0,0],
+  4:[100,20,1,80,0,0], 5:[134,26,1,108,0,0], 6:[172,18,2,68,0,0],
+  7:[196,20,2,78,0,0], 8:[242,24,2,97,0,0],  9:[292,30,2,116,0,0],
+  10:[346,18,2,68,2,69],  11:[404,20,4,81,0,0],   12:[466,24,2,92,2,93],
+  13:[532,26,4,107,0,0],  14:[581,30,3,115,1,116],15:[655,22,5,87,1,88],
+  16:[733,24,5,98,1,99],  17:[815,28,1,107,5,108],18:[901,30,5,120,1,121],
+  19:[991,28,3,113,4,114],20:[1085,28,3,107,5,108],21:[1156,28,4,116,4,117],
+  22:[1258,28,2,111,7,112],23:[1364,30,4,121,5,122],24:[1474,30,6,117,4,118],
+  25:[1588,26,8,106,4,107],26:[1706,28,10,114,2,115],27:[1828,30,8,122,4,123],
+  28:[1921,30,3,117,10,118],29:[2051,30,7,116,7,117],30:[2185,30,5,115,10,116],
+  31:[2323,30,13,115,3,116],32:[2465,30,17,115,0,0],  33:[2611,30,17,115,1,116],
+  34:[2761,30,13,115,6,116],35:[2876,30,12,121,7,122],36:[3034,30,6,121,14,122],
+  37:[3196,30,17,122,4,123],38:[3362,30,4,122,18,123],39:[3532,30,20,117,4,118],
+  40:[3706,30,19,118,6,119]
+};
+const REMAINDER_BITS = [0,0,7,7,7,7,7,0,0,0,0,0,0,0,3,3,3,3,3,3,3,4,4,4,4,4,4,4,3,3,3,3,3,3,3,0,0,0,0,0,0];
+// index by version (1..40)
+
+const ALIGN_POS = { // alignment pattern center coordinates per version
+  1:[], 2:[6,18], 3:[6,22], 4:[6,26], 5:[6,30], 6:[6,34],
+  7:[6,22,38], 8:[6,24,42], 9:[6,26,46], 10:[6,28,50],
+  11:[6,30,54], 12:[6,32,58], 13:[6,34,62], 14:[6,26,46,66],
+  15:[6,26,48,70], 16:[6,26,50,74], 17:[6,30,54,78], 18:[6,30,56,82],
+  19:[6,30,58,86], 20:[6,34,62,90], 21:[6,28,50,72,94], 22:[6,26,50,74,98],
+  23:[6,30,54,78,102], 24:[6,28,54,80,106], 25:[6,32,58,84,110],
+  26:[6,30,58,86,114], 27:[6,34,62,90,118], 28:[6,26,50,74,98,122],
+  29:[6,30,54,78,102,126], 30:[6,26,52,78,104,130], 31:[6,30,56,82,108,134],
+  32:[6,34,60,86,112,138], 33:[6,30,58,86,114,142], 34:[6,34,62,90,118,146],
+  35:[6,30,54,78,102,126,150], 36:[6,24,50,76,102,128,154], 37:[6,28,54,80,106,132,158],
+  38:[6,32,58,84,110,136,162], 39:[6,26,54,82,110,138,166], 40:[6,30,58,86,114,142,170]
+};
+
+function pickVersionL(byteLen){
+  for(let v=1; v<=40; v++){
+    const t = VTABLE_L[v];
+    const dataCw = t[2]*t[3] + t[4]*t[5];
+    // capacity in bytes for byte mode: dataCw - (mode+len header bytes)
+    const lenBits = v<=9 ? 8 : 16;
+    const headerBits = 4 + lenBits;
+    const capacityBits = dataCw*8 - headerBits;
+    const capacityBytes = Math.floor(capacityBits/8);
+    if(byteLen <= capacityBytes) return v;
+  }
+  return null; // too big
+}
+
+function buildBitStream(bytes, version){
+  const bits = [];
+  const push = (val, len) => { for(let i=len-1;i>=0;i--) bits.push((val>>i)&1); };
+  push(0b0100, 4); // byte mode
+  const lenBits = version<=9 ? 8 : 16;
+  push(bytes.length, lenBits);
+  for(let i=0;i<bytes.length;i++) push(bytes[i], 8);
+  const t = VTABLE_L[version];
+  const dataCw = t[2]*t[3] + t[4]*t[5];
+  const totalBits = dataCw*8;
+  // terminator
+  for(let i=0;i<4 && bits.length<totalBits;i++) bits.push(0);
+  while(bits.length % 8 !== 0) bits.push(0);
+  // pad codewords
+  let padToggle = true;
+  while(bits.length < totalBits){
+    push(padToggle ? 0xEC : 0x11, 8);
+    padToggle = !padToggle;
+  }
+  return bits;
+}
+function bitsToBytes(bits){
+  const out = new Uint8Array(bits.length/8);
+  for(let i=0;i<out.length;i++){
+    let v=0;
+    for(let j=0;j<8;j++) v = (v<<1) | bits[i*8+j];
+    out[i]=v;
+  }
+  return out;
+}
+
+function buildCodewords(bytes, version){
+  const bits = buildBitStream(bytes, version);
+  const dataCodewords = bitsToBytes(bits);
+  const t = VTABLE_L[version];
+  const [totalCw, ecPerBlock, g1n, g1d, g2n, g2d] = t;
+  const blocks = [];
+  let off = 0;
+  for(let i=0;i<g1n;i++){ blocks.push(dataCodewords.slice(off, off+g1d)); off += g1d; }
+  for(let i=0;i<g2n;i++){ blocks.push(dataCodewords.slice(off, off+g2d)); off += g2d; }
+  const ecBlocks = blocks.map(b => rsEncode(b, ecPerBlock));
+  // interleave data
+  const maxD = Math.max(g1d, g2d || 0);
+  const out = [];
+  for(let i=0;i<maxD;i++){
+    for(const b of blocks) if(i < b.length) out.push(b[i]);
+  }
+  for(let i=0;i<ecPerBlock;i++){
+    for(const b of ecBlocks) out.push(b[i]);
+  }
+  const remBits = REMAINDER_BITS[version];
+  const finalBits = [];
+  for(const cw of out) for(let j=7;j>=0;j--) finalBits.push((cw>>j)&1);
+  for(let i=0;i<remBits;i++) finalBits.push(0);
+  return finalBits;
+}
+
+// ---------- Matrix construction ----------
+function makeMatrix(version){
+  const size = 4*version+17;
+  const m = Array.from({length:size}, ()=>new Array(size).fill(null)); // null=free, 0/1=set
+  return {size, m};
+}
+function setFinder(m, row, col){
+  for(let r=-1;r<=7;r++) for(let c=-1;c<=7;c++){
+    const rr=row+r, cc=col+c;
+    if(rr<0||cc<0||rr>=m.length||cc>=m.length) continue;
+    if(r>=0&&r<=6&&c>=0&&c<=6){
+      const onEdge = (r===0||r===6||c===0||c===6);
+      const inner = (r>=2&&r<=4&&c>=2&&c<=4);
+      m[rr][cc] = (onEdge||inner) ? 1 : 0;
+    } else {
+      m[rr][cc] = 0; // separator
+    }
+  }
+}
+function setAlignment(m, row, col){
+  for(let r=-2;r<=2;r++) for(let c=-2;c<=2;c++){
+    const onEdge = (r===-2||r===2||c===-2||c===2);
+    m[row+r][col+c] = (onEdge || (r===0&&c===0)) ? 1 : 0;
+  }
+}
+function placeFixedPatterns(m, size, version){
+  setFinder(m, 0, 0);
+  setFinder(m, 0, size-7);
+  setFinder(m, size-7, 0);
+  // timing
+  for(let i=8;i<size-8;i++){
+    m[6][i] = (i%2===0) ? 1 : 0;
+    m[i][6] = (i%2===0) ? 1 : 0;
+  }
+  // alignment patterns
+  const pos = ALIGN_POS[version] || [];
+  for(const r of pos) for(const c of pos){
+    // skip if overlapping finder patterns (corners)
+    if((r<=8&&c<=8) || (r<=8&&c>=size-9) || (r>=size-9&&c<=8)) continue;
+    setAlignment(m, r, c);
+  }
+  // dark module
+  m[4*version+9][8] = 1;
+  // reserve format info areas (fill later)
+  for(let i=0;i<9;i++){
+    if(m[8][i]===null) m[8][i] = -1; // reserved marker
+    if(m[i][8]===null) m[i][8] = -1;
+  }
+  for(let i=0;i<8;i++){
+    m[8][size-1-i] = -1;
+    m[size-1-i][8] = -1;
+  }
+  m[size-8][8] = 1; // always-dark module near bottom-left format area (part of dark module handled above too)
+  // version info reserved area for version>=7
+  if(version>=7){
+    for(let r=0;r<6;r++) for(let c=0;c<3;c++){
+      m[r][size-11+c] = -1;
+      m[size-11+c][r] = -1;
+    }
+  }
+}
+function placeData(m, size, bits){
+  let idx = 0;
+  let dir = -1; // upward
+  let col = size-1;
+  while(col > 0){
+    if(col===6) col--; // skip timing column
+    for(let i=0;i<size;i++){
+      const row = dir===-1 ? (size-1-i) : i;
+      for(const c of [col, col-1]){
+        if(m[row][c] === null){
+          const bit = idx < bits.length ? bits[idx] : 0;
+          idx++;
+          m[row][c] = bit;
+        }
+      }
+    }
+    dir = -dir;
+    col -= 2;
+  }
+}
+function applyMask(m, size, maskFn, reservedMask){
+  const out = Array.from({length:size}, ()=>new Array(size).fill(0));
+  for(let r=0;r<size;r++) for(let c=0;c<size;c++){
+    const isData = reservedMask[r][c] === 2; // 2 = data module marker
+    let v = m[r][c];
+    if(isData && maskFn(r,c)) v ^= 1;
+    out[r][c] = v;
+  }
+  return out;
+}
+const MASK_FNS = [
+  (r,c)=> (r+c)%2===0,
+  (r,c)=> r%2===0,
+  (r,c)=> c%3===0,
+  (r,c)=> (r+c)%3===0,
+  (r,c)=> (Math.floor(r/2)+Math.floor(c/3))%2===0,
+  (r,c)=> (r*c)%2 + (r*c)%3 === 0,
+  (r,c)=> ((r*c)%2 + (r*c)%3)%2===0,
+  (r,c)=> ((r+c)%2 + (r*c)%3)%2===0,
+];
+
+// BCH for format info (15,5)
+function formatBits(ecLevel, maskId){
+  const ecBits = {L:0b01, M:0b00, Q:0b11, H:0b10}[ecLevel];
+  let data = (ecBits<<3) | maskId; // 5 bits
+  let g = data << 10;
+  const poly = 0b10100110111; // g(x) = x^10+x^8+x^5+x^4+x^2+x+1
+  for(let i=14;i>=10;i--){
+    if(g & (1<<i)) g ^= (poly << (i-10));
+  }
+  let bits = (data<<10) | g;
+  bits ^= 0b101010000010010;
+  return bits; // 15 bits
+}
+function placeFormatInfo(m, size, ecLevel, maskId){
+  const f = formatBits(ecLevel, maskId);
+  const bitAt = (i)=> (f>>(14-i))&1; // i=0..14 MSB(d14) first, placement order
+  const bitRaw = (k)=> (f>>k)&1;     // k=0..14, k is the bit/d-index itself (d0=LSB)
+  // around top-left (placement order d14..d0)
+  const col1 = [0,1,2,3,4,5,7,8,8,8,8,8,8,8,8];
+  const row1 = [8,8,8,8,8,8,8,8,7,5,4,3,2,1,0];
+  for(let i=0;i<15;i++) m[row1[i]][col1[i]] = bitAt(i);
+  // top-right: row8, cols size-1..size-8 hold d0..d7
+  for(let i=0;i<8;i++) m[8][size-1-i] = bitRaw(i);
+  // bottom-left: col8, rows size-7..size-1 hold d8..d14
+  for(let i=8;i<15;i++) m[size-15+i][8] = bitRaw(i);
+}
+function versionInfoBits(version){
+  let data = version; // 6 bits
+  let g = data << 12;
+  const poly = 0b1111100100101; // degree 12 generator for version info
+  for(let i=17;i>=12;i--){
+    if(g & (1<<i)) g ^= (poly << (i-12));
+  }
+  return (data<<12) | g; // 18 bits
+}
+function placeVersionInfo(m, size, version){
+  if(version<7) return;
+  const v = versionInfoBits(version);
+  for(let i=0;i<18;i++){
+    const bit = (v>>i)&1;
+    const row = Math.floor(i/3);
+    const col = i%3;
+    m[row][size-11+col] = bit;
+    m[size-11+col][row] = bit;
+  }
+}
+function penaltyScore(m, size){
+  let score = 0;
+  // rule 1: runs
+  for(let r=0;r<size;r++){
+    let run=1;
+    for(let c=1;c<size;c++){
+      if(m[r][c]===m[r][c-1]) run++; else { if(run>=5) score += 3+(run-5); run=1; }
+    }
+    if(run>=5) score += 3+(run-5);
+  }
+  for(let c=0;c<size;c++){
+    let run=1;
+    for(let r=1;r<size;r++){
+      if(m[r][c]===m[r-1][c]) run++; else { if(run>=5) score += 3+(run-5); run=1; }
+    }
+    if(run>=5) score += 3+(run-5);
+  }
+  // rule 2: 2x2 blocks
+  for(let r=0;r<size-1;r++) for(let c=0;c<size-1;c++){
+    const v = m[r][c];
+    if(v===m[r][c+1] && v===m[r+1][c] && v===m[r+1][c+1]) score += 3;
+  }
+  // rule 3: finder-like patterns 1:1:3:1:1
+  const pat1 = [1,0,1,1,1,0,1,0,0,0,0];
+  const pat2 = [0,0,0,0,1,0,1,1,1,0,1];
+  function matchAt(arr, start, pat){
+    for(let i=0;i<pat.length;i++) if(arr[start+i]!==pat[i]) return false;
+    return true;
+  }
+  for(let r=0;r<size;r++){
+    const row = m[r];
+    for(let c=0;c<=size-11;c++){
+      if(matchAt(row,c,pat1) || matchAt(row,c,pat2)) score += 40;
+    }
+  }
+  for(let c=0;c<size;c++){
+    const col = [];
+    for(let r=0;r<size;r++) col.push(m[r][c]);
+    for(let r=0;r<=size-11;r++){
+      if(matchAt(col,r,pat1) || matchAt(col,r,pat2)) score += 40;
+    }
+  }
+  // rule 4: dark ratio
+  let dark=0;
+  for(let r=0;r<size;r++) for(let c=0;c<size;c++) if(m[r][c]) dark++;
+  const percent = (dark*100)/(size*size);
+  const prev5 = Math.floor(percent/5)*5;
+  score += Math.min(Math.abs(prev5-50), Math.abs(prev5+5-50))/5*10;
+  return score;
+}
+
+function encodeMatrix(text, ecLevel){
+  ecLevel = ecLevel || 'L';
+  const bytes = [];
+  for(let i=0;i<text.length;i++) bytes.push(text.charCodeAt(i) & 0xFF);
+  const version = pickVersionL(bytes.length);
+  if(!version) throw new Error('Data too large for a QR code');
+  const dataBits = buildCodewords(bytes, version);
+  const {size, m} = makeMatrix(version);
+  placeFixedPatterns(m, size, version);
+  // record which cells are data-eligible before writing data
+  const reserved = Array.from({length:size}, (_,r)=> m[r].map(v => v===null ? 2 : (v===-1?1:0)));
+  placeData(m, size, dataBits);
+  // fill any remaining reserved(-1) with 0 temporarily (format/version areas), remember mask
+  for(let r=0;r<size;r++) for(let c=0;c<size;c++) if(m[r][c]===-1) m[r][c]=0;
+
+  let best=null, bestScore=Infinity;
+  for(let mi=0;mi<8;mi++){
+    const candidate = applyMask(m, size, MASK_FNS[mi], reserved);
+    placeFormatInfo(candidate, size, ecLevel, mi);
+    placeVersionInfo(candidate, size, version);
+    const sc = penaltyScore(candidate, size);
+    if(sc < bestScore){ bestScore = sc; best = candidate; }
+  }
+  return {size, matrix: best, version};
+}
+
+function toSVG(text, opts){
+  opts = opts || {};
+  const ecLevel = opts.ecLevel || 'L';
+  const {size, matrix} = encodeMatrix(text, ecLevel);
+  const quiet = opts.quietZone != null ? opts.quietZone : 8;
+  const dim = size + quiet*2;
+  const fg = opts.fg || '#000000';
+  const bg = opts.bg || '#ffffff';
+  let path = '';
+  for(let r=0;r<size;r++){
+    for(let c=0;c<size;c++){
+      if(matrix[r][c]) path += `M${c+quiet},${r+quiet}h1v1h-1z`;
+    }
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${dim} ${dim}" shape-rendering="crispEdges">`+
+    `<rect width="${dim}" height="${dim}" fill="${bg}"/>`+
+    `<path d="${path}" fill="${fg}"/></svg>`;
+}
+
+return { encodeMatrix, toSVG };
+});
+
+function qrSvgMarkup(text){
+  try{
+    return QREnc.toSVG(text, { quietZone: 8, fg:'#111827', bg:'#ffffff' });
+  }catch(e){
+    return '';
+  }
+}
+
+/* ---------- QR camera scanner ---------- */
+// Lives outside the innerHTML render() cycle (appended straight to <body>) so an
+// in-progress camera stream never gets torn down by an unrelated re-render.
+let _qrScanState = null;
+
+function closeQrScanner(){
+  if(!_qrScanState) return;
+  if(_qrScanState.raf) cancelAnimationFrame(_qrScanState.raf);
+  if(_qrScanState.stream) _qrScanState.stream.getTracks().forEach(t=>t.stop());
+  if(_qrScanState.el && _qrScanState.el.parentNode) _qrScanState.el.parentNode.removeChild(_qrScanState.el);
+  _qrScanState = null;
+}
+
+function onQrScanned(target, text){
+  closeQrScanner();
+  if(target==='host'){
+    const box = $('#hostCodeInput');
+    if(box){ box.value = text; }
+    if(App.guest) App.guest.hostCode = text;
+    toast('Host code scanned');
+    actions['join-generate-answer']();
+  } else {
+    const box = $('#answerCodeInput');
+    if(box){ box.value = text; }
+    toast('Reply code scanned');
+    actions['connect-guest']();
+  }
+}
+
+function openQrScanner(target){
+  closeQrScanner();
+  const overlay = document.createElement('div');
+  overlay.className = 'scanner-overlay';
+  _qrScanState = { el: overlay, stream:null, raf:null };
+
+  if(!('BarcodeDetector' in window)){
+    overlay.innerHTML = `
+      <div class="scanner-topbar"><span></span>
+        <button class="icon-btn" id="qrScanClose"><img src="icons/chevron-left.png" style="filter:invert(1);"></button>
+      </div>
+      <div class="scanner-fallback">
+        <img src="icons/camera.png">
+        <div>
+          <div style="font-weight:800;margin-bottom:6px;">This browser can't scan in-page</div>
+          <div class="muted small" style="color:rgba(255,255,255,.75);">Open your phone's Camera app and point it at the QR code instead. Tap the banner it shows to copy the code, then come back here and use Paste.</div>
+        </div>
+        <button class="btn btn-violet" id="qrScanGotIt">Got it</button>
+      </div>`;
+    document.body.appendChild(overlay);
+    $('#qrScanClose').addEventListener('click', closeQrScanner);
+    $('#qrScanGotIt').addEventListener('click', closeQrScanner);
+    return;
+  }
+
+  overlay.innerHTML = `
+    <div class="scanner-topbar"><span></span>
+      <button class="icon-btn" id="qrScanClose"><img src="icons/chevron-left.png" style="filter:invert(1);"></button>
+    </div>
+    <video id="qrScanVideo" autoplay playsinline muted></video>
+    <div class="scanner-frame"></div>
+    <div class="scanner-status" id="qrScanStatus">Point the camera at the QR code</div>`;
+  document.body.appendChild(overlay);
+  $('#qrScanClose').addEventListener('click', closeQrScanner);
+
+  const video = $('#qrScanVideo');
+  const statusEl = $('#qrScanStatus');
+
+  navigator.mediaDevices.getUserMedia({ video:{ facingMode:'environment' }, audio:false }).then(stream=>{
+    if(!_qrScanState){ stream.getTracks().forEach(t=>t.stop()); return; } // closed while awaiting permission
+    _qrScanState.stream = stream;
+    video.srcObject = stream;
+    let detector;
+    try{ detector = new window.BarcodeDetector({ formats:['qr_code'] }); }
+    catch(e){ statusEl.textContent = "Couldn't start the scanner — use Paste instead."; return; }
+
+    const tick = () => {
+      if(!_qrScanState) return;
+      if(video.readyState >= 2){
+        detector.detect(video).then(codes=>{
+          if(!_qrScanState) return;
+          if(codes && codes.length){
+            const text = (codes[0].rawValue||'').trim();
+            if(text) { onQrScanned(target, text); return; }
+          }
+          _qrScanState.raf = requestAnimationFrame(tick);
+        }).catch(()=>{ if(_qrScanState) _qrScanState.raf = requestAnimationFrame(tick); });
+      } else {
+        _qrScanState.raf = requestAnimationFrame(tick);
+      }
+    };
+    tick();
+  }).catch(err=>{
+    if(!_qrScanState) return;
+    statusEl.textContent = (err && err.name==='NotAllowedError')
+      ? 'Camera permission denied — allow it in your browser settings, or use Paste instead.'
+      : "Couldn't access the camera — use Paste instead.";
+  });
+}
+
 async function shareOrCopy(text, title){
   if(navigator.share){
     try{ await navigator.share({ text, title: title||'QuizMe connect code' }); return true; }catch(e){ /* user cancelled or unsupported — fall back */ }
@@ -982,12 +1515,17 @@ SCREENS['lobby-host'] = () => {
           <button class="btn btn-ghost grow" data-action="copy-code" data-code="${esc(h.inviteCode)}"><img src="icons/copy.png">Copy</button>
           <button class="btn btn-violet grow" data-action="share-code" data-code="${esc(h.inviteCode)}"><img src="icons/arrow-right.png" style="filter:invert(1);">Share</button>
         </div>
+        <div class="qr-card mb-3">
+          <div class="qr-wrap" data-action="enlarge-qr">${qrSvgMarkup(h.inviteCode)}</div>
+          <p class="muted small mt-2" style="margin-bottom:0;">Have them scan this in Join Lobby to skip the paste</p>
+        </div>
         <label class="field-label">Paste their reply code here</label>
         <textarea class="input mb-2" id="answerCodeInput" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Paste the guest's reply code..."></textarea>
-        <div class="row gap">
+        <div class="row gap mb-2">
           <button class="btn btn-outline grow" data-action="paste-answer-code"><img src="icons/copy.png">Paste</button>
-          <button class="btn btn-violet grow" data-action="connect-guest"><img src="icons/check.png" style="filter:invert(1);">Connect player</button>
+          <button class="btn btn-outline grow" data-action="scan-qr" data-target="answer"><img src="icons/camera.png">Scan QR</button>
         </div>
+        <button class="btn btn-violet" data-action="connect-guest"><img src="icons/check.png" style="filter:invert(1);">Connect player</button>
       ` : (h._generatingInvite ? '' : `<button class="btn btn-outline" data-action="generate-invite"><img src="icons/plus.png">Get invite code</button>`)}
     </div>` : `
     <div class="card mb-3 center small muted pulse">Broadcasting on this device — waiting for players to appear in their Discover tab...</div>`}
@@ -1024,7 +1562,10 @@ SCREENS['join-lobby'] = () => {
       <p class="muted small mb-2">First connect your Wi-Fi to the host's phone hotspot (with client/AP isolation OFF). Then paste the invite code they shared with you — your reply code generates automatically.</p>
       <label class="field-label">Invite code from host</label>
       <textarea class="input mb-2" id="hostCodeInput" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Paste the host's invite code...">${esc(g.hostCode||'')}</textarea>
-      <button class="btn btn-outline mb-3" data-action="paste-host-code"><img src="icons/copy.png">Paste from clipboard</button>
+      <div class="row gap mb-3">
+        <button class="btn btn-outline grow" data-action="paste-host-code"><img src="icons/copy.png">Paste</button>
+        <button class="btn btn-outline grow" data-action="scan-qr" data-target="host"><img src="icons/camera.png">Scan QR</button>
+      </div>
       ${g._generating ? `<div class="center small muted pulse mb-2">Generating reply code…</div>` : ''}
       ${g.answerCode ? `
         <label class="field-label">Your reply code — send this back to the host</label>
@@ -1032,6 +1573,10 @@ SCREENS['join-lobby'] = () => {
         <div class="row gap mb-2">
           <button class="btn btn-outline grow" data-action="copy-code" data-code="${esc(g.answerCode)}"><img src="icons/copy.png">Copy</button>
           <button class="btn btn-violet grow" data-action="share-code" data-code="${esc(g.answerCode)}"><img src="icons/arrow-right.png" style="filter:invert(1);">Share</button>
+        </div>
+        <div class="qr-card mb-2">
+          <div class="qr-wrap" data-action="enlarge-qr">${qrSvgMarkup(g.answerCode)}</div>
+          <p class="muted small mt-2" style="margin-bottom:0;">Or let the host scan this instead of pasting</p>
         </div>
         <div class="alert ${g.status==='failed'?'alert-danger':'alert-info'} small">${g.status==='connected' ? '✅ Connected! Waiting for host to start the battle...' : g.status==='failed' ? 'Connection failed — check the hotspot allows device-to-device traffic (client/AP isolation off), then paste a fresh invite code.' : 'Waiting for the host to accept your reply code...'}</div>
       ` : ''}
@@ -1501,6 +2046,8 @@ const actions = {
       if(box && text){ box.value = text.trim(); App.guest.hostCode = text.trim(); actions['join-generate-answer'](); }
     }).catch(()=>toast('Long-press the box and paste manually'));
   },
+  'scan-qr'(el){ openQrScanner(el.dataset.target); },
+  'enlarge-qr'(el){ el.classList.toggle('enlarged'); },
 
   /* ---- quiz sets ---- */
   'new-quizset'(){ App.editingSetId=null; App._quizDraft=null; goTo('quizedit'); },
