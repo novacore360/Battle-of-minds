@@ -200,6 +200,39 @@ textarea.input{resize:vertical;min-height:70px;font-family:ui-monospace,Consolas
 
 ::-webkit-scrollbar{width:6px;height:6px;}
 ::-webkit-scrollbar-thumb{background:var(--v200);border-radius:4px;}
+
+/* ---------- glass / stat visuals (soft fitness-app inspired look) ---------- */
+body{background:radial-gradient(120% 100% at 50% 0%, #EAF1FF 0%, #F1ECFC 45%, #F5F2FC 100%);}
+.glass{background:rgba(255,255,255,.62);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border:1px solid rgba(255,255,255,.8);border-radius:var(--r-lg);box-shadow:0 14px 34px rgba(76,51,176,.12);}
+.stat-hero{background:var(--grad-hero);border-radius:var(--r-lg);padding:22px 20px 20px;color:#fff;position:relative;overflow:hidden;box-shadow:var(--sh-lg);}
+.stat-hero:before{content:"";position:absolute;inset:0;background:radial-gradient(160px 160px at 90% -8%, rgba(255,255,255,.3), transparent 70%);}
+.stat-hero:after{content:"";position:absolute;inset:0;background:radial-gradient(140px 140px at -10% 110%, rgba(255,255,255,.16), transparent 70%);}
+.ring-wrap{position:relative;width:130px;height:130px;margin:8px auto 4px;}
+.ring-wrap svg{display:block;}
+.ring-label{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.ring-label b{font-size:1.55rem;font-weight:900;line-height:1;}
+.ring-label span{font-size:.62rem;opacity:.85;text-transform:uppercase;letter-spacing:.07em;margin-top:2px;}
+.capsule-row{display:flex;justify-content:space-between;gap:8px;margin-top:16px;position:relative;z-index:1;}
+.capsule-col{display:flex;flex-direction:column;align-items:center;gap:7px;flex:1;}
+.capsule{width:28px;height:82px;border-radius:999px;background:rgba(255,255,255,.2);position:relative;overflow:hidden;box-shadow:inset 0 0 0 1px rgba(255,255,255,.25);}
+.capsule .fill{position:absolute;bottom:0;left:0;right:0;border-radius:999px;transition:height .5s cubic-bezier(.2,.8,.2,1);}
+.capsule-col .cap-label{font-size:.62rem;font-weight:800;opacity:.9;text-align:center;letter-spacing:.01em;}
+.capsule-col .cap-pct{font-size:.72rem;font-weight:900;}
+
+/* pill bottom nav, soft floating style */
+.bottomnav{border-radius:28px 28px 0 0;background:rgba(255,255,255,.86);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);}
+.navbtn-icon{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:background .18s,box-shadow .18s;}
+.navbtn-icon img{width:19px;height:19px;opacity:.5;transition:opacity .18s,filter .18s;}
+.navbtn.active .navbtn-icon{background:var(--v600);box-shadow:0 8px 18px rgba(108,74,230,.38);}
+.navbtn.active .navbtn-icon img{filter:invert(1);opacity:1;}
+
+/* choice cards used by the solo math picker */
+.choice-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
+.choice-card{border-radius:var(--r-md);padding:13px 10px;text-align:center;background:var(--surface);border:2px solid var(--line);
+  font-weight:800;font-size:.86rem;transition:border-color .12s,background .12s,transform .08s;}
+.choice-card:active{transform:scale(.97);}
+.choice-card.active{border-color:var(--v600);background:var(--v100);color:var(--v700);box-shadow:var(--sh-sm);}
 </style>
 </head>
 <body>
@@ -210,11 +243,10 @@ textarea.input{resize:vertical;min-height:70px;font-family:ui-monospace,Consolas
 
   <!-- bottom nav (only shown on main tabs) -->
   <nav class="bottomnav" id="bottomnav" style="display:none;">
-    <button class="navbtn" data-nav="home"><img src="icons/home.png" alt=""><span>Home</span></button>
-    <button class="navbtn" data-nav="discover"><img src="icons/wifi.png" alt=""><span>Discover</span></button>
-    <button class="navbtn" data-nav="rankings"><img src="icons/trophy.png" alt=""><span>Rankings</span></button>
-    <button class="navbtn" data-nav="quizsets"><img src="icons/quiz.png" alt=""><span>Quiz Sets</span></button>
-    <button class="navbtn" data-nav="profile"><img src="icons/profile.png" alt=""><span>Profile</span></button>
+    <button class="navbtn" data-nav="home"><span class="navbtn-icon"><img src="icons/home.png" alt=""></span><span>Home</span></button>
+    <button class="navbtn" data-nav="rankings"><span class="navbtn-icon"><img src="icons/trophy.png" alt=""></span><span>Rankings</span></button>
+    <button class="navbtn" data-nav="quizsets"><span class="navbtn-icon"><img src="icons/quiz.png" alt=""></span><span>Quiz Sets</span></button>
+    <button class="navbtn" data-nav="profile"><span class="navbtn-icon"><img src="icons/profile.png" alt=""></span><span>Profile</span></button>
   </nav>
 
   <div class="toast" id="toast"></div>
@@ -268,7 +300,72 @@ function fallbackCopy(text){
 }
 
 /* ---------------------------------------------------------------- built-in fill-in-the-blank quiz sets */
-function q(text, answers){ return { id: uid(), text, answers: Array.isArray(answers)?answers:[answers] }; }
+function q(text, answers, points){ return { id: uid(), text, answers: Array.isArray(answers)?answers:[answers], points: points||100 }; }
+
+/* ---------------------------------------------------------------- procedural math practice (fully offline) */
+const MATH_OPS = {
+  mixed:{ label:'Mixed', symbol:'±' },
+  addition:{ label:'Addition', symbol:'+' },
+  subtraction:{ label:'Subtraction', symbol:'−' },
+  multiplication:{ label:'Multiplication', symbol:'×' },
+  division:{ label:'Division', symbol:'÷' },
+};
+const MATH_DIFFICULTY = {
+  easy:{ label:'Easy', range:[1,10], mulRange:[1,10], divRange:[1,10] },
+  medium:{ label:'Medium', range:[10,60], mulRange:[2,15], divRange:[2,12] },
+  hard:{ label:'Hard', range:[25,150], mulRange:[6,25], divRange:[3,20] },
+};
+function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+function pickMathOp(op){
+  if(op!=='mixed') return op;
+  return ['addition','subtraction','multiplication','division'][randInt(0,3)];
+}
+function generateMathQuestion(op, difficulty){
+  const diff = MATH_DIFFICULTY[difficulty] || MATH_DIFFICULTY.easy;
+  const realOp = pickMathOp(op);
+  let a,b,answer,text;
+  if(realOp==='addition'){
+    a=randInt(diff.range[0],diff.range[1]); b=randInt(diff.range[0],diff.range[1]);
+    answer=a+b; text=`${a} + ${b} = ____`;
+  } else if(realOp==='subtraction'){
+    a=randInt(diff.range[0],diff.range[1]); b=randInt(diff.range[0],diff.range[1]);
+    if(b>a){ const t=a; a=b; b=t; }
+    answer=a-b; text=`${a} − ${b} = ____`;
+  } else if(realOp==='multiplication'){
+    a=randInt(diff.mulRange[0],diff.mulRange[1]); b=randInt(diff.mulRange[0],diff.mulRange[1]);
+    answer=a*b; text=`${a} × ${b} = ____`;
+  } else { // division — built from a clean product so the result is a whole number
+    b=randInt(diff.divRange[0],diff.divRange[1]); answer=randInt(diff.divRange[0],diff.divRange[1]);
+    a=b*answer; text=`${a} ÷ ${b} = ____`;
+  }
+  return { id: uid(), text, answers:[String(answer)], points:100, _correctNum: answer };
+}
+function genMathOptions(correct){
+  const opts = new Set([correct]);
+  let guard=0;
+  while(opts.size<4 && guard<50){
+    guard++;
+    const delta = randInt(1, Math.max(3, Math.round(Math.abs(correct)*0.3)+2));
+    const sign = Math.random()<0.5 ? -1 : 1;
+    let cand = correct + sign*delta;
+    if(cand<0) cand = correct + delta;
+    opts.add(cand);
+  }
+  return shuffleArray([...opts].map(String));
+}
+function generateMathQuiz(op, difficulty, count){
+  const seen = new Set(); const out=[];
+  let guard=0;
+  while(out.length<count && guard<count*25){
+    guard++;
+    const qz = generateMathQuestion(op, difficulty);
+    if(seen.has(qz.text)) continue;
+    seen.add(qz.text);
+    qz.options = genMathOptions(qz._correctNum);
+    out.push(qz);
+  }
+  return out;
+}
 
 const BUILTIN_QUIZSETS = [
   { id:'builtin-general', builtin:true, icon:'target', name:'General Knowledge', questions:[
@@ -378,6 +475,7 @@ function makeEmitter(){
   const listeners = {};
   return {
     on(ev, cb){ (listeners[ev] = listeners[ev]||[]).push(cb); },
+    off(ev, cb){ if(listeners[ev]) listeners[ev] = listeners[ev].filter(f=>f!==cb); },
     emit(ev, ...args){ (listeners[ev]||[]).forEach(cb=>{ try{cb(...args);}catch(e){console.error(e);} }); },
   };
 }
@@ -1141,7 +1239,7 @@ const App = {
   params: {},
   profile: null,
   create: { quizSetId: 'builtin-general', numQuestions: 8, seconds: 15, mode: 'webrtc' },
-  solo: { quizSetId: 'builtin-general', numQuestions: 8, seconds: 15 },
+  solo: { mode:'math', op:'mixed', difficulty:'easy', quizSetId: 'builtin-general', numQuestions: 8, seconds: 15 },
   host: null,     // { transport, lobbyName, quizSetId, numQuestions, seconds, mode, roomCode, players:[{id,name,avatarIdx,connected,isHost}], pendingInvitePeerId, inviteCode }
   guest: null,    // { transport, mode, hostCode, answerCode, players:[], connected, status }
   battle: null,   // runtime battle state (see runBattleAsHost / guest handlers)
@@ -1150,7 +1248,7 @@ const App = {
   stopScan: null,
 };
 
-const MAIN_TABS = ['home','discover','rankings','quizsets','profile'];
+const MAIN_TABS = ['home','rankings','quizsets','profile'];
 
 function goTo(screen, params={}){
   App.screen = screen; App.params = params;
@@ -1206,27 +1304,69 @@ SCREENS.onboarding = () => {
 };
 
 /* ---------- Home ---------- */
+function ringSvg(pct, opts={}){
+  const size = opts.size||130, stroke=opts.stroke||14;
+  const color = opts.color||'#fff', track = opts.track||'rgba(255,255,255,.28)';
+  const r = (size-stroke)/2, c = 2*Math.PI*r;
+  const clamped = Math.max(0, Math.min(100, pct));
+  const dash = c*clamped/100;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+    <circle cx="${size/2}" cy="${size/2}" r="${r}" stroke="${track}" stroke-width="${stroke}" fill="none"/>
+    <circle cx="${size/2}" cy="${size/2}" r="${r}" stroke="${color}" stroke-width="${stroke}" fill="none"
+      stroke-linecap="round" stroke-dasharray="${dash.toFixed(1)} ${(c-dash).toFixed(1)}"
+      transform="rotate(-90 ${size/2} ${size/2})" style="transition:stroke-dasharray .6s cubic-bezier(.2,.8,.2,1);"/>
+  </svg>`;
+}
+function capsuleStat(label, pct, grad){
+  const clamped = Math.max(4, Math.min(100, Math.round(pct)));
+  return `<div class="capsule-col">
+    <div class="capsule"><div class="fill" style="height:${clamped}%;background:${grad};"></div></div>
+    <div class="cap-pct">${Math.round(pct)}%</div>
+    <div class="cap-label">${esc(label)}</div>
+  </div>`;
+}
 SCREENS.home = () => {
   const p = App.profile;
   const rankings = Object.values(getRankings()).sort((a,b)=>b.totalScore-a.totalScore);
   const myRank = rankings.findIndex(r=>r.name.toLowerCase()===p.name.toLowerCase());
+  const me = myRank>=0 ? rankings[myRank] : null;
+  const accuracy = me && me.totalQuestions ? Math.round((me.totalCorrect/me.totalQuestions)*100) : 0;
+  const winRate = me && me.games ? Math.round((me.wins/me.games)*100) : 0;
+  const bestPct = me ? Math.min(100, Math.round((me.bestScore/1000)*100)) : 0;
+  const gamesPct = me ? Math.min(100, me.games*10) : 0;
   return `<div class="screen active">
     <div class="topbar">
       <div class="brand"><img src="icons/app-logo.png" alt="">QuizMe Offline</div>
       <button class="icon-btn" data-action="goto" data-screen="profile"><img src="${avatarSrc(p.avatarIdx)}" style="border-radius:50%;"></button>
     </div>
 
-    <div class="hero">
+    <div class="stat-hero mb-3">
       <div style="position:relative;z-index:1;">
         <div class="eyebrow">Fully offline · no internet</div>
         <h2 style="color:#fff;font-size:1.3rem;margin-top:4px;">Hey ${esc(p.name)} 👋</h2>
-        <p style="color:rgba(255,255,255,.85);font-size:.85rem;">${myRank>=0 ? `Ranked #${myRank+1} locally · ${rankings[myRank].totalScore} pts` : 'Play a battle to get ranked'}</p>
+        <p style="color:rgba(255,255,255,.85);font-size:.85rem;margin-bottom:2px;">${myRank>=0 ? `Ranked #${myRank+1} locally · ${rankings[myRank].totalScore} pts` : 'Play a battle to get ranked'}</p>
+
+        ${me ? `
+        <div class="ring-wrap">
+          ${ringSvg(accuracy, { color:'#fff', track:'rgba(255,255,255,.25)' })}
+          <div class="ring-label" style="color:#fff;"><b>${accuracy}%</b><span>Accuracy</span></div>
+        </div>
+        <div class="capsule-row" style="color:#fff;">
+          ${capsuleStat('Accuracy', accuracy, 'linear-gradient(180deg,#4EE0C6,#1FC6AC)')}
+          ${capsuleStat('Win rate', winRate, 'linear-gradient(180deg,#FFB199,#FF7A33)')}
+          ${capsuleStat('Best', bestPct, 'linear-gradient(180deg,#FFD36E,#F4B740)')}
+          ${capsuleStat('Games', gamesPct, 'linear-gradient(180deg,#FF9FC6,#FB4D6F)')}
+        </div>` : `
+        <div class="center" style="padding:14px 4px 2px;color:rgba(255,255,255,.9);">
+          <img src="icons/target.png" style="width:34px;height:34px;filter:invert(1);opacity:.85;margin-bottom:6px;">
+          <p class="small" style="margin:0;">Play your first quiz to start tracking accuracy, wins &amp; streaks here.</p>
+        </div>`}
       </div>
     </div>
 
     <div class="fab-actions mb-3">
       <button class="action-tile" data-action="goto" data-screen="solo-setup">
-        <img src="icons/play.png"><h4>Solo Quiz</h4><p>Practice alone, no other players needed</p>
+        <img src="icons/play.png"><h4>Solo Quiz</h4><p>Math practice or quiz sets, just you</p>
       </button>
       <button class="action-tile" data-action="goto" data-screen="create-lobby">
         <img src="icons/hotspot.png"><h4>Create Lobby</h4><p>Open your hotspot &amp; host a battle</p>
@@ -1237,13 +1377,10 @@ SCREENS.home = () => {
       <button class="action-tile" data-action="goto" data-screen="discover">
         <img src="icons/search.png"><h4>Discover</h4><p>Find nearby open lobbies</p>
       </button>
-      <button class="action-tile" data-action="goto" data-screen="rankings">
-        <img src="icons/trophy.png"><h4>Rankings</h4><p>See the local leaderboard</p>
-      </button>
     </div>
 
     <div class="row between mb-2"><h4 style="margin:0;">How it works</h4></div>
-    <div class="card small">
+    <div class="card glass small">
       <div class="row gap mb-2"><img src="icons/hotspot.png" style="width:20px;height:20px;"><span><b>1.</b> User A creates a lobby and turns on their phone hotspot.</span></div>
       <div class="row gap mb-2"><img src="icons/wifi.png" style="width:20px;height:20px;"><span><b>2.</b> User B &amp; C connect to that hotspot's Wi-Fi.</span></div>
       <div class="row gap"><img src="icons/controller.png" style="width:20px;height:20px;"><span><b>3.</b> Exchange a one-time connect code, then battle by tapping the correct answer!</span></div>
@@ -1393,22 +1530,50 @@ SCREENS.quizedit = () => {
   const sets = getQuizSets();
   const editing = App.editingSetId ? sets.find(s=>s.id===App.editingSetId) : null;
   const draft = App._quizDraft || (editing ? JSON.parse(JSON.stringify(editing)) : { id:uid(), name:'', icon:'quiz', questions:[] });
+  draft.questions.forEach(q=>{ if(!q.points) q.points = 100; if(!q.answers) q.answers=['']; });
   App._quizDraft = draft;
   const readOnly = editing && editing.builtin;
   return `<div class="screen flow active">
     ${backHeader(readOnly ? draft.name : (editing?'Edit Quiz Set':'New Quiz Set'), 'quizsets')}
     ${readOnly ? `<div class="alert alert-info mb-3 small">This is a built-in set and can't be edited, but you can duplicate it as a custom set.</div>`:''}
-    <div class="card mb-3">
+    <div class="card glass mb-3">
       <label class="field-label">Set name</label>
       <input class="input mb-3" id="qsName" ${readOnly?'disabled':''} maxlength="30" value="${esc(draft.name)}" placeholder="e.g. Movie Trivia">
-      <label class="field-label">Questions — use ____ (4 underscores) where the blank goes. The <b>first</b> answer is shown as the correct tap-choice; extra ones (optional) are just alternate spellings.</label>
+
+      ${!readOnly && draft.questions.length>1 ? `
+      <div class="alert alert-info small mb-3">
+        <div class="row between gap" style="align-items:flex-end;flex-wrap:wrap;">
+          <div class="grow" style="min-width:120px;">
+            <label class="field-label" style="margin-bottom:4px;">Set a score for every question</label>
+            <input type="number" class="input" id="applyScoreInput" min="10" max="1000" step="10" value="100">
+          </div>
+          <button class="btn btn-violet btn-sm" data-action="apply-score-all">Apply to all</button>
+        </div>
+      </div>` : ''}
+
+      <label class="field-label">Questions <span class="muted small">— use <b>____</b> (4 underscores) for the blank</span></label>
       <div id="qList">
         ${draft.questions.map((q,i)=>`
           <div class="card" style="background:var(--canvas);box-shadow:none;">
-            <div class="row between mb-2"><b class="small">Question ${i+1}</b>
-              ${readOnly?'':`<button class="icon-btn ghost" data-action="remove-question" data-i="${i}"><img src="icons/trash.png"></button>`}</div>
+            <div class="row between mb-2">
+              <b class="small">Question ${i+1}</b>
+              <div class="row gap">
+                <span class="badge host">${q.points} pts</span>
+                ${readOnly?'':`<button class="icon-btn ghost" data-action="remove-question" data-i="${i}"><img src="icons/trash.png"></button>`}
+              </div>
+            </div>
+
+            <label class="field-label small" style="margin-bottom:4px;">Question</label>
             <textarea class="input mb-2" ${readOnly?'disabled':''} data-action="edit-qtext" data-i="${i}" placeholder="Paris is the capital of ____.">${esc(q.text)}</textarea>
-            <input class="input" ${readOnly?'disabled':''} data-action="edit-qanswers" data-i="${i}" placeholder="Accepted answers, comma-separated" value="${esc(q.answers.join(', '))}">
+
+            <label class="field-label small" style="margin-bottom:4px;">Correct answer</label>
+            <input class="input mb-2" ${readOnly?'disabled':''} data-action="edit-qcorrect" data-i="${i}" placeholder="e.g. France" value="${esc(q.answers[0]||'')}">
+
+            <label class="field-label small" style="margin-bottom:4px;">Other accepted spellings <span class="muted">(optional)</span></label>
+            <input class="input mb-2" ${readOnly?'disabled':''} data-action="edit-qaltanswers" data-i="${i}" placeholder="e.g. french republic (comma-separated)" value="${esc((q.answers.slice(1)||[]).join(', '))}">
+
+            <label class="field-label small" style="margin-bottom:4px;">Points for this question</label>
+            <input type="number" class="input" ${readOnly?'disabled':''} min="10" max="1000" step="10" data-action="edit-qpoints" data-i="${i}" value="${q.points}">
           </div>`).join('')}
       </div>
       ${readOnly ? `<button class="btn btn-violet mt-2" data-action="duplicate-quizset" data-id="${editing.id}"><img src="icons/copy.png" style="filter:invert(1);">Duplicate as custom set</button>` : `
@@ -1421,21 +1586,43 @@ SCREENS.quizedit = () => {
 /* ---------- Solo Quiz (practice alone, no networking) ---------- */
 SCREENS['solo-setup'] = () => {
   const c = App.solo;
+  const isMath = c.mode !== 'sets';
   const sets = getQuizSets();
-  const set = sets.find(s=>s.id===c.quizSetId) || sets[0];
-  const maxQ = set.questions.length;
-  if(c.numQuestions > maxQ) c.numQuestions = maxQ;
+  let maxQ = 20;
+  if(!isMath){
+    const set = sets.find(s=>s.id===c.quizSetId) || sets[0];
+    maxQ = set.questions.length;
+  }
+  const numQuestions = Math.min(c.numQuestions, maxQ);
   return `<div class="screen flow active">
     ${backHeader('Solo Quiz', 'home')}
-    <div class="alert alert-info mb-3 small">Practice mode — just you, no hotspot or other players needed. Your score still saves to your local history.</div>
-    <div class="card mb-3">
+    <div class="alert alert-info mb-3 small">Practice mode — just you, no hotspot or other players needed. Works 100% offline; your score still saves to your local history.</div>
+
+    <div class="segmented mb-3">
+      <button data-action="solo-pick-mode" data-mode="math" class="${isMath?'active':''}">Math Practice</button>
+      <button data-action="solo-pick-mode" data-mode="sets" class="${!isMath?'active':''}">Quiz Sets</button>
+    </div>
+
+    <div class="card glass mb-3">
+      ${isMath ? `
+      <label class="field-label">Operation</label>
+      <div class="choice-grid mb-3">
+        ${Object.entries(MATH_OPS).map(([key,o])=>`
+          <button class="choice-card ${c.op===key?'active':''}" data-action="solo-pick-op" data-op="${key}">${esc(o.symbol)} ${esc(o.label)}</button>`).join('')}
+      </div>
+      <label class="field-label">Difficulty</label>
+      <div class="segmented mb-4">
+        ${Object.entries(MATH_DIFFICULTY).map(([key,d])=>`<button data-action="solo-pick-difficulty" data-diff="${key}" class="${c.difficulty===key?'active':''}">${esc(d.label)}</button>`).join('')}
+      </div>
+      ` : `
       <label class="field-label">Quiz set</label>
       <select class="input mb-3" id="soloSetSelect">
         ${sets.map(s=>`<option value="${s.id}" ${s.id===c.quizSetId?'selected':''}>${esc(s.name)} (${s.questions.length}q)</option>`).join('')}
       </select>
+      `}
 
-      <label class="field-label">Number of questions: ${c.numQuestions}</label>
-      <input type="range" class="range mb-4" id="soloNumQRange" min="3" max="${maxQ}" value="${c.numQuestions}">
+      <label class="field-label">Number of questions: ${numQuestions}</label>
+      <input type="range" class="range mb-4" id="soloNumQRange" min="3" max="${maxQ}" value="${numQuestions}">
 
       <label class="field-label">Time per question</label>
       <div class="segmented mb-4">
@@ -1719,6 +1906,7 @@ function shuffleArray(arr){
   return a;
 }
 function genOptions(qz, pool){
+  if(qz.options && qz.options.length) return qz.options; // pre-built (e.g. procedural math distractors)
   const correct = qz.answers[0];
   const acceptedLower = qz.answers.map(a=>a.toLowerCase());
   let candidates = pool.filter(o=>o.id!==qz.id).map(o=>o.answers[0]).filter(a=>!acceptedLower.includes(a.toLowerCase()));
@@ -1730,6 +1918,24 @@ function genOptions(qz, pool){
     while(candidates.length<3 && extra.length) candidates.push(extra.pop());
   }
   return shuffleArray([correct, ...candidates]);
+}
+/* Speed-scoring: uses a SINGLE authoritative clock (whoever times the question — the
+   host) for every player, and rounds elapsed time into coarse buckets. This is what
+   actually fixes "two players answered at the same time but got different scores":
+   the old formula scored guests using their own device's countdown timer (rounded to
+   whole seconds and drifting independently of the host's timer + network jitter), so
+   two truly-simultaneous taps could land in different buckets on different devices.
+   Now every answer's speed is measured the same way, on the same clock, and answers
+   that land in the same ~150ms window always score identically. */
+function computeSpeedPoints(elapsedMs, seconds, maxPoints){
+  maxPoints = maxPoints || 100;
+  const minPoints = Math.round(maxPoints*0.5);
+  const totalMs = Math.max(1, seconds*1000);
+  const clamped = Math.max(0, Math.min(totalMs, elapsedMs));
+  const bucketMs = 150;
+  const bucketed = Math.round(clamped/bucketMs)*bucketMs;
+  const frac = 1 - Math.min(1, bucketed/totalMs);
+  return Math.round(minPoints + frac*(maxPoints-minPoints));
 }
 function genRoomCode(){
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -1833,7 +2039,7 @@ function startGuestCountdown(g){
       App.battle.timeLeft = 0;
       if(!App.battle.answered){
         App.battle.answered = true;
-        g.transport.sendToHost({ t:'answer', idx: App.battle.idx, text: App.battle.myAnswerDraft||'', timeLeftMs: 0 });
+        g.transport.sendToHost({ t:'answer', idx: App.battle.idx, text: App.battle.myAnswerDraft||'' });
       }
       clearInterval(guestTimerHandle);
     }
@@ -1844,8 +2050,8 @@ function startGuestCountdown(g){
 /* =========================================================================
    BATTLE ENGINE (host is authoritative; also plays as a contestant)
    ========================================================================= */
-async function startBattleAsSolo(quizSetId, numQuestions, seconds){
-  const set = getQuizSets().find(s=>s.id===quizSetId);
+async function startBattleAsSolo(setOrId, numQuestions, seconds){
+  const set = typeof setOrId === 'string' ? getQuizSets().find(s=>s.id===setOrId) : setOrId;
   const questions = shuffleArray(set.questions).slice(0, numQuestions);
   const me = { id:'ME', name:App.profile.name, avatarIdx:App.profile.avatarIdx };
   const scoreState = { score:0, correct:0, total:0 };
@@ -1860,10 +2066,11 @@ async function startBattleAsSolo(quizSetId, numQuestions, seconds){
   for(let i=0;i<questions.length;i++){
     const qz = questions[i];
     const opts = genOptions(qz, set.questions);
+    const questionStartAt = Date.now();
 
     App.battle.idx=i; App.battle.phase='question'; App.battle.currentText=qz.text; App.battle.options=opts;
     App.battle.timeLeft=seconds; App.battle.answered=false; App.battle.myAnswerDraft='';
-    App.battle._hostAnswerText=''; App.battle._hostAnswerTimeLeftMs=0;
+    App.battle._hostAnswerText=''; App.battle._hostAnswerAt=null; App.battle._questionStartAt=questionStartAt;
     render();
 
     let tLeft = seconds;
@@ -1877,9 +2084,10 @@ async function startBattleAsSolo(quizSetId, numQuestions, seconds){
     });
 
     const given = App.battle._hostAnswerText || '';
-    const timeLeftMs = App.battle._hostAnswerTimeLeftMs || 0;
+    const answeredAt = App.battle._hostAnswerAt || null;
+    const elapsedMs = answeredAt!=null ? (answeredAt - questionStartAt) : seconds*1000;
     const correct = answerMatches(given, qz.answers);
-    const points = correct ? Math.max(100, Math.round(1000 * (timeLeftMs/(seconds*1000)))) : 0;
+    const points = correct ? computeSpeedPoints(elapsedMs, seconds, qz.points||100) : 0;
     scoreState.score += points; scoreState.total += 1; if(correct) scoreState.correct += 1;
 
     App.battle.phase='reveal';
@@ -1922,17 +2130,20 @@ async function startBattleAsHost(){
   for(let i=0;i<questions.length;i++){
     const qz = questions[i];
     const opts = genOptions(qz, set.questions);
+    const questionStartAt = Date.now(); // single authoritative clock for scoring this question
     h.transport.broadcast({ t:'question', idx:i, total:questions.length, text:qz.text, seconds, options:opts });
 
     App.battle.idx=i; App.battle.phase='question'; App.battle.currentText=qz.text; App.battle.options=opts;
     App.battle.timeLeft=seconds; App.battle.answered=false; App.battle.myAnswerDraft='';
-    App.battle._hostAnswerText=''; App.battle._hostAnswerTimeLeftMs=0;
+    App.battle._hostAnswerText=''; App.battle._hostAnswerAt=null; App.battle._questionStartAt=questionStartAt;
     render();
 
     const pending = {};
     const collector = (peerId, msg) => {
+      // Timestamp every answer the instant the HOST receives it (not the sender's
+      // self-reported time), so all players are measured on the same clock.
       if(msg && msg.t==='answer' && msg.idx===i && pending[peerId]===undefined){
-        pending[peerId] = { text: msg.text||'', timeLeftMs: msg.timeLeftMs||0 };
+        pending[peerId] = { text: msg.text||'', answeredAt: Date.now() };
       }
     };
     h.transport.on('message', collector);
@@ -1946,16 +2157,20 @@ async function startBattleAsHost(){
         if(tLeft<=0){ clearInterval(timer); resolve(); }
       }, 1000);
     });
+    h.transport.off('message', collector);
 
     const hostAnswerText = App.battle._hostAnswerText || '';
-    const hostTimeLeftMs = App.battle._hostAnswerTimeLeftMs || 0;
+    const hostAnsweredAt = App.battle._hostAnswerAt || null;
+    const deadlineElapsedMs = seconds*1000;
+    const maxPoints = qz.points || 100;
 
     const results = {};
     players.forEach(p=>{
       const given = p.isHost ? hostAnswerText : (pending[p.id] ? pending[p.id].text : '');
-      const timeLeftMs = p.isHost ? hostTimeLeftMs : (pending[p.id] ? pending[p.id].timeLeftMs : 0);
+      const answeredAt = p.isHost ? hostAnsweredAt : (pending[p.id] ? pending[p.id].answeredAt : null);
+      const elapsedMs = answeredAt!=null ? (answeredAt - questionStartAt) : deadlineElapsedMs;
       const correct = answerMatches(given, qz.answers);
-      const points = correct ? Math.max(100, Math.round(1000 * (timeLeftMs/(seconds*1000)))) : 0;
+      const points = correct ? computeSpeedPoints(elapsedMs, seconds, maxPoints) : 0;
       scores[p.id].score += points; scores[p.id].total += 1; if(correct) scores[p.id].correct += 1;
       results[p.id] = { correct, points };
     });
@@ -2066,20 +2281,33 @@ const actions = {
     render();
   },
   'add-question'(){
-    App._quizDraft.questions.push({ id: uid(), text:'', answers:[''] });
+    App._quizDraft.questions.push({ id: uid(), text:'', answers:[''], points:100 });
     render();
   },
   'remove-question'(el){
     App._quizDraft.questions.splice(parseInt(el.dataset.i),1);
     render();
   },
+  'apply-score-all'(){
+    const val = Math.max(10, Math.min(1000, parseInt(($('#applyScoreInput')||{}).value) || 100));
+    App._quizDraft.questions.forEach(q=>q.points=val);
+    render();
+    toast(`Set every question to ${val} pts`);
+  },
   'save-quizset'(){
     const draft = App._quizDraft;
     draft.name = ($('#qsName').value||'').trim() || 'Untitled Set';
+    // draft.questions is already kept in sync live via the input listeners below,
+    // so we just normalize/validate it here instead of re-reading every DOM field.
     draft.questions = draft.questions
-      .map((q,i)=>({ id:q.id, text: $(`[data-action="edit-qtext"][data-i="${i}"]`).value.trim(), answers: $(`[data-action="edit-qanswers"][data-i="${i}"]`).value.split(',').map(s=>s.trim()).filter(Boolean) }))
+      .map(q=>({
+        id:q.id,
+        text:(q.text||'').trim(),
+        answers:(q.answers||[]).map(a=>(a||'').trim()).filter(Boolean),
+        points: Math.max(10, Math.min(1000, parseInt(q.points)||100)),
+      }))
       .filter(q=>q.text && q.answers.length && /_{3,}/.test(q.text));
-    if(draft.questions.length < 2){ toast('Add at least 2 questions with a ____ blank and an answer'); return; }
+    if(draft.questions.length < 2){ toast('Add at least 2 questions, each with a ____ blank and a correct answer'); return; }
     let sets = getQuizSets();
     const idx = sets.findIndex(s=>s.id===draft.id);
     if(idx>=0) sets[idx]=draft; else sets.push(draft);
@@ -2091,11 +2319,24 @@ const actions = {
 
   /* ---- solo quiz (practice) ---- */
   'solo-pick-seconds'(el){ App.solo.seconds = parseInt(el.dataset.sec); render(); },
+  'solo-pick-mode'(el){ App.solo.mode = el.dataset.mode; render(); },
+  'solo-pick-op'(el){ App.solo.op = el.dataset.op; render(); },
+  'solo-pick-difficulty'(el){ App.solo.difficulty = el.dataset.diff; render(); },
   'start-solo'(){
-    const quizSetId = $('#soloSetSelect') ? $('#soloSetSelect').value : App.solo.quizSetId;
     const numQuestions = $('#soloNumQRange') ? parseInt($('#soloNumQRange').value) : App.solo.numQuestions;
-    App.solo.quizSetId = quizSetId; App.solo.numQuestions = numQuestions;
-    startBattleAsSolo(quizSetId, numQuestions, App.solo.seconds);
+    App.solo.numQuestions = numQuestions;
+    if(App.solo.mode==='sets'){
+      const quizSetId = $('#soloSetSelect') ? $('#soloSetSelect').value : App.solo.quizSetId;
+      App.solo.quizSetId = quizSetId;
+      startBattleAsSolo(quizSetId, numQuestions, App.solo.seconds);
+    } else {
+      const questions = generateMathQuiz(App.solo.op, App.solo.difficulty, numQuestions);
+      if(questions.length < 3){ toast('Could not generate enough unique questions — try a different setup'); return; }
+      const opLabel = MATH_OPS[App.solo.op].label;
+      const diffLabel = MATH_DIFFICULTY[App.solo.difficulty].label;
+      const mathSet = { id:'math-'+uid(), name:`Math Practice — ${opLabel} (${diffLabel})`, questions };
+      startBattleAsSolo(mathSet, questions.length, App.solo.seconds);
+    }
   },
 
   /* ---- create lobby (host) ---- */
@@ -2178,12 +2419,13 @@ const actions = {
     const val = el.dataset.option;
     b.answered = true;
     b.myAnswerDraft = val;
-    const timeLeftMs = (b.timeLeft||0) * 1000;
     if(b.isHost){
+      // Host taps are timed on the host's own clock — the same clock used to
+      // time every guest's answer arrival, so speed scoring stays fair.
       App.battle._hostAnswerText = val;
-      App.battle._hostAnswerTimeLeftMs = timeLeftMs;
+      App.battle._hostAnswerAt = Date.now();
     } else if(App.guest && App.guest.transport){
-      App.guest.transport.sendToHost({ t:'answer', idx: b.idx, text: val, timeLeftMs });
+      App.guest.transport.sendToHost({ t:'answer', idx: b.idx, text: val });
     }
     render();
   },
@@ -2233,8 +2475,18 @@ document.addEventListener('input', (e)=>{
     if(lbl) lbl.textContent = 'Number of questions: '+t.value;
   } else if(t.dataset && t.dataset.action==='edit-qtext'){
     App._quizDraft.questions[parseInt(t.dataset.i)].text = t.value;
-  } else if(t.dataset && t.dataset.action==='edit-qanswers'){
-    App._quizDraft.questions[parseInt(t.dataset.i)].answers = t.value.split(',').map(s=>s.trim()).filter(Boolean);
+  } else if(t.dataset && t.dataset.action==='edit-qcorrect'){
+    const qd = App._quizDraft.questions[parseInt(t.dataset.i)];
+    qd.answers = [t.value, ...((qd.answers||[]).slice(1))];
+  } else if(t.dataset && t.dataset.action==='edit-qaltanswers'){
+    const qd = App._quizDraft.questions[parseInt(t.dataset.i)];
+    const alts = t.value.split(',').map(s=>s.trim()).filter(Boolean);
+    qd.answers = [(qd.answers && qd.answers[0]) || '', ...alts];
+  } else if(t.dataset && t.dataset.action==='edit-qpoints'){
+    const qd = App._quizDraft.questions[parseInt(t.dataset.i)];
+    qd.points = parseInt(t.value)||100;
+    const badge = t.closest('.card').querySelector('.badge.host');
+    if(badge) badge.textContent = qd.points + ' pts'; // live-update without a full re-render
   } else if(t.id==='qsName' && App._quizDraft){
     App._quizDraft.name = t.value;
   } else if(t.id==='hostCodeInput'){

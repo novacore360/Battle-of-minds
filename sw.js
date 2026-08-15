@@ -5,7 +5,7 @@
    CACHE_NAME whenever index.html changes so returning visitors get the
    update instead of a stale cached copy. */
 
-const CACHE_NAME = 'mindbattle-offline-v2';
+const CACHE_NAME = 'mindbattle-offline-v3';
 const SCOPE_URL = self.registration ? self.registration.scope : './';
 
 const APP_SHELL = [
