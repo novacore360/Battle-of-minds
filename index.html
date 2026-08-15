@@ -3,31 +3,34 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-<title>MindBattle Offline — Hotspot Quiz Battles</title>
+<title>MindBattle — Hotspot Quiz Battles</title>
 <link rel="icon" type="image/png" href="icons/favicon-192.png">
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icons/favicon-192.png">
-<meta name="theme-color" content="#6C4AE6">
+<link rel="apple-touch-icon" href="icons/app-logo.png">
+<meta name="theme-color" content="#0B3D66">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="QuizMe">
+<meta name="apple-mobile-web-app-title" content="MindBattle">
 <style>
 /* =========================================================
 
    ========================================================= */
 :root{
-  --v900:#1E1638; --v700:#4C33B0; --v600:#6C4AE6; --v500:#7C5CFC; --v400:#9B82FA; --v200:#D9CFFC; --v100:#EDE7FE;
-  --em600:#F0530C; --em500:#FF7A33; --em400:#FF9A5C; --em100:#FFE7D6;
-  --mint600:#0EA890; --mint500:#1FC6AC; --mint100:#DCFAF3;
-  --coral600:#E23B5C; --coral500:#FB4D6F; --coral100:#FFE1E7;
+  /* "Ice" — deep glacier navy -> polar blue accent scale */
+  --v900:#0A2540; --v700:#0F4C81; --v600:#1479C9; --v500:#2E9BE0; --v400:#6FC6F2; --v200:#C7ECFB; --v100:#E7F7FD;
+  /* "Glow" — bright electric-cyan accent used for primary CTAs */
+  --em600:#0369A1; --em500:#0EA5E9; --em400:#5EEAD4; --em100:#E0FBFF;
+  --mint600:#0EA890; --mint500:#22D3B0; --mint100:#DFFAF3;
+  --coral600:#D5486B; --coral500:#F16382; --coral100:#FFE6EC;
   --gold:#F4B740; --silver:#B8C0D6; --bronze:#D08A57;
-  --ink900:#1E1A2E; --ink700:#423C57; --ink500:#7A7391; --ink300:#B3ACC7;
-  --canvas:#F5F2FC; --surface:#FFFFFF; --line:rgba(30,22,56,.08);
-  --grad-hero:linear-gradient(155deg,#6C4AE6 0%,#7C5CFC 48%,#9B82FA 100%);
-  --grad-ember:linear-gradient(135deg,#FF9A5C 0%,#FF7A33 55%,#F0530C 100%);
-  --grad-mint:linear-gradient(135deg,#4EE0C6 0%,#1FC6AC 100%);
-  --sh-sm:0 2px 8px rgba(30,22,56,.06); --sh-md:0 10px 28px rgba(76,51,176,.14); --sh-lg:0 18px 44px rgba(76,51,176,.20);
+  --ink900:#132436; --ink700:#3E5A73; --ink500:#6E8AA0; --ink300:#A9C2D3;
+  --canvas:#EAF6FE; --surface:rgba(255,255,255,.58); --surface-solid:#FFFFFF; --line:rgba(255,255,255,.65);
+  --glass-border:rgba(255,255,255,.75); --glass-blur:18px;
+  --grad-hero:linear-gradient(155deg,#0A3358 0%,#1479C9 48%,#6FC6F2 100%);
+  --grad-ember:linear-gradient(135deg,#5EEAD4 0%,#0EA5E9 55%,#0369A1 100%);
+  --grad-mint:linear-gradient(135deg,#5EEAD4 0%,#1FC6AC 100%);
+  --sh-sm:0 2px 10px rgba(15,76,129,.10); --sh-md:0 10px 30px rgba(15,76,129,.16); --sh-lg:0 18px 46px rgba(15,76,129,.22);
   --r-sm:12px; --r-md:18px; --r-lg:26px; --r-pill:999px;
   --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
   --app-max:480px;
@@ -37,7 +40,14 @@ html,body{height:100%;}
 body{
   margin:0; background:var(--canvas); font-family:var(--font); color:var(--ink900);
   -webkit-font-smoothing:antialiased; overscroll-behavior:none;
+  min-height:100%; position:relative; overflow-x:hidden;
 }
+/* frosted "glacier" backdrop: soft blurred glow blobs sitting behind the glass UI */
+body::before,body::after{content:"";position:fixed;border-radius:50%;pointer-events:none;z-index:0;filter:blur(70px);}
+body::before{width:60vw;height:60vw;max-width:420px;max-height:420px;top:-14vw;left:-16vw;
+  background:radial-gradient(circle at 30% 30%, rgba(111,198,242,.65), rgba(111,198,242,0) 70%);}
+body::after{width:70vw;height:70vw;max-width:480px;max-height:480px;bottom:-18vw;right:-18vw;
+  background:radial-gradient(circle at 70% 70%, rgba(94,234,212,.5), rgba(94,234,212,0) 70%);}
 h1,h2,h3,h4,h5,h6{font-family:var(--font); color:var(--ink900); letter-spacing:-.01em; margin:0 0 6px;}
 p{margin:0 0 8px;}
 button{font-family:inherit;color:inherit;background:none;border:none;cursor:pointer;padding:0;margin:0;}
@@ -45,36 +55,42 @@ input,textarea,select{font-family:inherit;}
 img{display:block;}
 a{color:var(--v600);}
 
-#app{max-width:var(--app-max); margin:0 auto; min-height:100vh; display:flex; flex-direction:column; background:var(--canvas); position:relative;}
+#app{max-width:var(--app-max); margin:0 auto; min-height:100vh; display:flex; flex-direction:column; background:transparent; position:relative; z-index:1;}
 
 .screen{display:none; flex:1; flex-direction:column; padding:16px 16px calc(90px + env(safe-area-inset-bottom));}
 .screen.active{display:flex;}
 .screen.flow{padding-bottom:24px;}
 
 /* top bar */
-.topbar{display:flex;align-items:center;justify-content:space-between;height:60px;padding:0 4px;position:sticky;top:0;background:var(--canvas);z-index:5;}
-.topbar .brand{display:flex;align-items:center;gap:8px;font-weight:800;font-size:1.05rem;}
+.topbar{display:flex;align-items:center;justify-content:space-between;height:60px;padding:0 12px;margin:0 -16px;position:sticky;top:0;
+  background:rgba(234,246,254,.72);backdrop-filter:blur(var(--glass-blur)) saturate(160%);-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(160%);
+  border-bottom:1px solid rgba(255,255,255,.5);z-index:5;}
+.topbar .brand{display:flex;align-items:center;gap:8px;font-weight:800;font-size:1.05rem;color:var(--v900);}
 .topbar .brand img{width:30px;height:30px;border-radius:8px;}
-.icon-btn{width:38px;height:38px;border-radius:var(--r-pill);display:flex;align-items:center;justify-content:center;background:var(--surface);box-shadow:var(--sh-sm);}
+.icon-btn{width:38px;height:38px;border-radius:var(--r-pill);display:flex;align-items:center;justify-content:center;background:var(--surface);
+  box-shadow:var(--sh-sm);border:1px solid var(--glass-border);backdrop-filter:blur(var(--glass-blur));-webkit-backdrop-filter:blur(var(--glass-blur));}
 .icon-btn img{width:18px;height:18px;}
-.icon-btn.ghost{background:transparent;box-shadow:none;}
+.icon-btn.ghost{background:transparent;box-shadow:none;border:none;backdrop-filter:none;-webkit-backdrop-filter:none;}
 
 .backheader{display:flex;align-items:center;gap:10px;height:52px;}
 .backheader h3{flex:1;margin:0;font-size:1.05rem;font-weight:800;}
 
 /* bottom nav */
 .bottomnav{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:var(--app-max);
-  background:var(--surface);box-shadow:0 -6px 24px rgba(30,22,56,.10);display:flex;justify-content:space-around;
-  padding:10px 6px calc(10px + env(safe-area-inset-bottom));z-index:20;border-radius:20px 20px 0 0;}
+  background:rgba(255,255,255,.55);border-top:1px solid rgba(255,255,255,.7);
+  box-shadow:0 -6px 28px rgba(15,76,129,.14);display:flex;justify-content:space-around;
+  padding:10px 6px calc(10px + env(safe-area-inset-bottom));z-index:20;border-radius:24px 24px 0 0;}
 .navbtn{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:.68rem;font-weight:700;color:var(--ink300);width:64px;}
 .navbtn img{width:22px;height:22px;opacity:.55;}
 .navbtn.active{color:var(--v600);}
 .navbtn.active img{opacity:1;}
 
 /* cards & building blocks */
-.card{background:var(--surface);border-radius:var(--r-md);box-shadow:var(--sh-sm);padding:16px;margin-bottom:12px;}
+.card{background:var(--surface);border-radius:var(--r-md);box-shadow:var(--sh-sm);padding:16px;margin-bottom:12px;
+  border:1px solid var(--glass-border);backdrop-filter:blur(var(--glass-blur)) saturate(160%);-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(160%);}
 .card-lg{padding:20px;}
-.hero{background:var(--grad-hero);border-radius:var(--r-lg);padding:20px;color:#fff;box-shadow:var(--sh-md);position:relative;overflow:hidden;margin-bottom:14px;}
+.hero{background:var(--grad-hero);border-radius:var(--r-lg);padding:20px;color:#fff;box-shadow:var(--sh-md);position:relative;overflow:hidden;margin-bottom:14px;
+  border:1px solid rgba(255,255,255,.25);}
 .hero:before{content:"";position:absolute;inset:0;background:radial-gradient(120px 120px at 90% -10%, rgba(255,255,255,.25), transparent 70%);}
 .eyebrow{font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.85;}
 .pill{display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border-radius:var(--r-pill);font-size:.72rem;font-weight:800;}
@@ -92,19 +108,20 @@ a{color:var(--v600);}
   font-weight:800;font-size:.95rem;transition:transform .08s ease;}
 .btn:active{transform:scale(.98);}
 .btn img{width:18px;height:18px;}
-.btn-primary{background:var(--grad-ember);color:#fff;box-shadow:0 10px 24px rgba(240,83,12,.28);}
-.btn-violet{background:var(--v600);color:#fff;box-shadow:var(--sh-md);}
-.btn-outline{background:var(--surface);color:var(--v600);border:2px solid var(--v200);}
+.btn-primary{background:var(--grad-ember);color:#083344;box-shadow:0 10px 26px rgba(14,165,233,.32);}
+.btn-violet{background:var(--grad-hero);color:#fff;box-shadow:var(--sh-md);}
+.btn-outline{background:var(--surface);color:var(--v700);border:2px solid var(--glass-border);backdrop-filter:blur(var(--glass-blur));-webkit-backdrop-filter:blur(var(--glass-blur));}
 .btn-ghost{background:var(--v100);color:var(--v700);}
 .btn-sm{padding:9px 14px;font-size:.82rem;width:auto;}
 .btn-danger{background:var(--coral100);color:var(--coral600);}
 .btn:disabled{opacity:.5;pointer-events:none;}
 
 .field-label{font-size:.78rem;font-weight:800;color:var(--ink700);margin-bottom:6px;display:block;}
-.input, textarea.input{width:100%;padding:12px 14px;border-radius:var(--r-sm);border:2px solid var(--line);background:var(--surface);font-size:.92rem;outline:none;}
+.input, textarea.input{width:100%;padding:12px 14px;border-radius:var(--r-sm);border:2px solid var(--line);background:var(--surface);font-size:.92rem;outline:none;
+  backdrop-filter:blur(var(--glass-blur));-webkit-backdrop-filter:blur(var(--glass-blur));color:var(--ink900);}
 .input:focus, textarea.input:focus{border-color:var(--v400);}
 textarea.input{resize:vertical;min-height:70px;font-family:ui-monospace,Consolas,monospace;font-size:.82rem;}
-.segmented{display:flex;background:var(--v100);border-radius:var(--r-pill);padding:4px;gap:2px;}
+.segmented{display:flex;background:rgba(255,255,255,.4);border:1px solid var(--glass-border);backdrop-filter:blur(var(--glass-blur));-webkit-backdrop-filter:blur(var(--glass-blur));border-radius:var(--r-pill);padding:4px;gap:2px;}
 .segmented button{flex:1;padding:9px 4px;text-align:center;border-radius:var(--r-pill);font-size:.78rem;font-weight:800;color:var(--v700);}
 .segmented button.active{background:var(--v600);color:#fff;box-shadow:var(--sh-sm);}
 .range{width:100%;accent-color:var(--v600);}
@@ -123,7 +140,7 @@ textarea.input{resize:vertical;min-height:70px;font-family:ui-monospace,Consolas
 .badge.live{background:var(--coral100);color:var(--coral600);}
 .badge.waiting{background:var(--mint100);color:var(--mint600);}
 
-.codebox{font-family:ui-monospace,Consolas,monospace;font-size:.78rem;line-height:1.4;background:var(--v900);color:#D9CFFC;
+.codebox{font-family:ui-monospace,Consolas,monospace;font-size:.78rem;line-height:1.4;background:var(--v900);color:#C7ECFB;
   border-radius:var(--r-sm);padding:12px;max-height:120px;overflow:auto;word-break:break-all;white-space:pre-wrap;}
 .big-code{font-family:ui-monospace,Consolas,monospace;font-weight:800;font-size:1.6rem;letter-spacing:.12em;text-align:center;color:#fff;}
 
@@ -151,7 +168,8 @@ textarea.input{resize:vertical;min-height:70px;font-family:ui-monospace,Consolas
 .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px);}
 
 .fab-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-.action-tile{background:var(--surface);border-radius:var(--r-lg);padding:18px 14px;box-shadow:var(--sh-sm);text-align:left;}
+.action-tile{background:var(--surface);border-radius:var(--r-lg);padding:18px 14px;box-shadow:var(--sh-sm);text-align:left;
+  border:1px solid var(--glass-border);backdrop-filter:blur(var(--glass-blur)) saturate(160%);-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(160%);}
 .action-tile img{width:30px;height:30px;margin-bottom:10px;}
 .action-tile h4{font-size:.92rem;margin-bottom:2px;}
 .action-tile p{font-size:.72rem;color:var(--ink500);margin:0;}
@@ -163,7 +181,8 @@ textarea.input{resize:vertical;min-height:70px;font-family:ui-monospace,Consolas
 
 .options-grid{display:grid;grid-template-columns:1fr;gap:10px;}
 .option-btn{display:flex;align-items:center;gap:10px;text-align:left;padding:13px 14px;border-radius:var(--r-md,14px);
-  border:2px solid var(--line);background:var(--surface);font-weight:700;font-size:.95rem;color:var(--ink900,#1a1a2e);
+  border:2px solid var(--glass-border);background:var(--surface);font-weight:700;font-size:.95rem;color:var(--ink900,#1a1a2e);
+  backdrop-filter:blur(var(--glass-blur)) saturate(160%);-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(160%);
   cursor:pointer;transition:border-color .15s,background .15s,transform .1s;}
 .option-btn:active{transform:scale(.98);}
 .option-btn:disabled{cursor:default;}
@@ -180,7 +199,8 @@ textarea.input{resize:vertical;min-height:70px;font-family:ui-monospace,Consolas
 .codebox-wrap{position:relative;}
 .code-chunked{word-spacing:2px;}
 
-.qr-card{background:var(--surface);border:2px solid var(--v100);border-radius:var(--r-md);padding:16px;text-align:center;}
+.qr-card{background:var(--surface);border:2px solid var(--glass-border);border-radius:var(--r-md);padding:16px;text-align:center;
+  backdrop-filter:blur(var(--glass-blur)) saturate(160%);-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(160%);}
 .qr-wrap{width:100%;max-width:230px;margin:0 auto;border-radius:var(--r-sm);overflow:hidden;cursor:pointer;}
 .qr-wrap svg{display:block;width:100%;height:auto;}
 .qr-wrap.enlarged{max-width:min(88vw,420px);}
@@ -201,10 +221,10 @@ textarea.input{resize:vertical;min-height:70px;font-family:ui-monospace,Consolas
 ::-webkit-scrollbar{width:6px;height:6px;}
 ::-webkit-scrollbar-thumb{background:var(--v200);border-radius:4px;}
 
-/* ---------- glass / stat visuals (soft fitness-app inspired look) ---------- */
-body{background:radial-gradient(120% 100% at 50% 0%, #EAF1FF 0%, #F1ECFC 45%, #F5F2FC 100%);}
-.glass{background:rgba(255,255,255,.62);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-  border:1px solid rgba(255,255,255,.8);border-radius:var(--r-lg);box-shadow:0 14px 34px rgba(76,51,176,.12);}
+/* ---------- glass / stat visuals (icy glassmorphism look) ---------- */
+body{background:radial-gradient(120% 100% at 50% 0%, #DFF3FF 0%, #E9F6FE 45%, #EAF6FE 100%);}
+.glass{background:rgba(255,255,255,.55);backdrop-filter:blur(20px) saturate(160%);-webkit-backdrop-filter:blur(20px) saturate(160%);
+  border:1px solid rgba(255,255,255,.8);border-radius:var(--r-lg);box-shadow:0 14px 34px rgba(15,76,129,.14);}
 .stat-hero{background:var(--grad-hero);border-radius:var(--r-lg);padding:22px 20px 20px;color:#fff;position:relative;overflow:hidden;box-shadow:var(--sh-lg);}
 .stat-hero:before{content:"";position:absolute;inset:0;background:radial-gradient(160px 160px at 90% -8%, rgba(255,255,255,.3), transparent 70%);}
 .stat-hero:after{content:"";position:absolute;inset:0;background:radial-gradient(140px 140px at -10% 110%, rgba(255,255,255,.16), transparent 70%);}
@@ -229,7 +249,8 @@ body{background:radial-gradient(120% 100% at 50% 0%, #EAF1FF 0%, #F1ECFC 45%, #F
 
 /* choice cards used by the solo math picker */
 .choice-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
-.choice-card{border-radius:var(--r-md);padding:13px 10px;text-align:center;background:var(--surface);border:2px solid var(--line);
+.choice-card{border-radius:var(--r-md);padding:13px 10px;text-align:center;background:var(--surface);border:2px solid var(--glass-border);
+  backdrop-filter:blur(var(--glass-blur)) saturate(160%);-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(160%);
   font-weight:800;font-size:.86rem;transition:border-color .12s,background .12s,transform .08s;}
 .choice-card:active{transform:scale(.97);}
 .choice-card.active{border-color:var(--v600);background:var(--v100);color:var(--v700);box-shadow:var(--sh-sm);}
@@ -254,7 +275,7 @@ body{background:radial-gradient(120% 100% at 50% 0%, #EAF1FF 0%, #F1ECFC 45%, #F
 
 <script>
 /* =========================================================================
-   QuizMe Offline — fully self-contained, no network, no build step.
+   MindBattle — fully self-contained, no network, no build step.
    Multiplayer over a phone hotspot uses WebRTC with a one-time manual
    "connect code" exchange (offer/answer) since a browser page cannot open
    a server or scan the local network on its own. A "Same-device Test Mode"
@@ -438,7 +459,7 @@ const DB = {
 };
 
 function getProfile(){ return DB.get('profile', null); }
-function saveProfile(p){ DB.set('profile', p); }
+function saveProfile(p){ DB.set('profile', p); upsertPlayerIdentity(p.id, p.name, p.avatarIdx); }
 function getQuizSets(){
   let sets = DB.get('quizsets', null);
   if(!sets){ sets = BUILTIN_QUIZSETS.map(s=>({...s})); DB.set('quizsets', sets); }
@@ -447,8 +468,6 @@ function getQuizSets(){
 function saveQuizSets(sets){ DB.set('quizsets', sets); }
 function getHistory(){ return DB.get('history', []); }
 function pushHistory(entry){ const h = getHistory(); h.unshift(entry); DB.set('history', h.slice(0,100)); }
-function getRankings(){ return DB.get('rankings', {}); }
-function saveRankings(r){ DB.set('rankings', r); }
 function getKnownLobbies(){ return DB.get('known_lobbies', []); }
 function saveKnownLobbies(list){ DB.set('known_lobbies', list.slice(0,25)); }
 function rememberLobby(entry){
@@ -456,6 +475,166 @@ function rememberLobby(entry){
   list.unshift({...entry, lastSeen: nowMs()});
   saveKnownLobbies(list);
 }
+
+/* =========================================================================
+   IDENTITY + RANKINGS SYNC
+   Every player has a permanent, auto-generated User ID (profile.id, created once
+   at onboarding and never regenerated — renaming never changes it). Rankings are
+   NOT a single mutable number: they're derived from two small append-only
+   "chains" that any two devices can merge with each other with zero conflicts:
+
+     - players   : a directory of {uid -> latest known name/avatar}, one record
+                   per user id, merged by keeping whichever record was updated
+                   most recently (so a rename always wins over stale copies,
+                   and old battle results relabel themselves to the new name).
+     - battleLog : one append-only node per battle played, each with its own
+                   unique id and the uid of every participant + their result.
+                   Merging two devices' logs is just a union by node id, so a
+                   node recorded on device B can reach device A by hopping
+                   through any device that has already synced with both —
+                   exactly like a gossip protocol / git history merge.
+
+   Rankings are always *recomputed* from these two chains, never stored as a
+   running total — so a battle result can never be double counted, deleting
+   local data doesn't erase what's already been synced elsewhere, and pulling
+   in a peer's chain also (transitively) pulls in everyone THEY had previously
+   synced with.
+   ========================================================================= */
+function getPlayers(){ return DB.get('players', {}); }
+function savePlayers(p){ DB.set('players', p); }
+function getBattleLog(){ return DB.get('battle_log', []); }
+function saveBattleLog(log){
+  // cap the log so sync payloads / localStorage stay small; oldest nodes drop
+  // off locally first but keep living on in any peer that already merged them.
+  DB.set('battle_log', log.slice(-500));
+}
+
+/* Upsert one identity record. Always wins over an older record for the same
+   uid (higher updatedAt), so a rename on ANY device eventually wins everywhere
+   once devices sync, and a stale/offline device can never roll a name back. */
+function upsertPlayerIdentity(uid_, name, avatarIdx, updatedAt){
+  if(!uid_) return;
+  const players = getPlayers();
+  const existing = players[uid_];
+  const rec = { uid: uid_, name: String(name||'Player').slice(0,18), avatarIdx: avatarIdx||0, updatedAt: updatedAt||nowMs() };
+  if(!existing || rec.updatedAt >= existing.updatedAt){
+    players[uid_] = rec;
+    savePlayers(players);
+  }
+  return players[uid_];
+}
+
+/* Merge a battle-log array (a "chain" of result nodes) into the local one,
+   deduping by node id — this is what makes it safe to merge the same battle
+   result arriving from multiple peers, or re-merge the same peer twice. */
+function mergeBattleLog(nodes){
+  if(!nodes || !nodes.length) return;
+  const log = getBattleLog();
+  const seen = new Set(log.map(n=>n.id));
+  let changed = false;
+  nodes.forEach(n=>{
+    if(n && n.id && !seen.has(n.id)){ log.push(n); seen.add(n.id); changed = true; }
+  });
+  if(changed){
+    log.sort((a,b)=>(a.ts||0)-(b.ts||0));
+    saveBattleLog(log);
+  }
+  return changed;
+}
+function mergePlayers(players){
+  if(!players) return;
+  Object.values(players).forEach(rec=>{
+    if(rec && rec.uid) upsertPlayerIdentity(rec.uid, rec.name, rec.avatarIdx, rec.updatedAt);
+  });
+}
+/* Build the payload exchanged between devices when they connect. */
+function buildSyncPayload(){
+  return { players: getPlayers(), battleLog: getBattleLog() };
+}
+/* Apply a payload received from a peer — merges both chains, so any node the
+   peer already picked up from ANY earlier connection (not just their own
+   games) also flows through to us. */
+function mergeSyncPayload(payload){
+  if(!payload) return;
+  mergePlayers(payload.players);
+  mergeBattleLog(payload.battleLog);
+}
+
+/* Rankings = a fresh aggregate folded over the battle log every time, keyed
+   by permanent uid, with names/avatars always taken from the *current*
+   players directory rather than whatever name was snapshotted into an old
+   battle-log node — so a rename instantly relabels a player's entire history. */
+function blankAgg(k){ return { uid:k, games:0, wins:0, totalScore:0, totalCorrect:0, totalQuestions:0, bestScore:0 }; }
+function getRankings(){
+  const players = getPlayers();
+  const log = getBattleLog();
+  const agg = {};
+  // seed with any migrated pre-User-ID totals (see migrateLegacyRankings)
+  const seed = DB.get('legacy_seed', {});
+  Object.values(seed).forEach(s=>{
+    const r = agg[s.uid] = agg[s.uid] || blankAgg(s.uid);
+    r.games += s.games; r.wins += s.wins; r.totalScore += s.totalScore;
+    r.totalCorrect += s.totalCorrect; r.totalQuestions += s.totalQuestions; r.bestScore = Math.max(r.bestScore, s.bestScore);
+  });
+  log.forEach(entry=>{
+    (entry.players||[]).forEach((p,i)=>{
+      const k = p.uid; if(!k) return;
+      const r = agg[k] = agg[k] || blankAgg(k);
+      r.games += 1;
+      if(i===0) r.wins += 1;
+      r.totalScore += p.score||0;
+      r.totalCorrect += p.correct||0;
+      r.totalQuestions += p.total||0;
+      r.bestScore = Math.max(r.bestScore, p.score||0);
+    });
+  });
+  Object.values(agg).forEach(r=>{
+    const idn = players[r.uid];
+    r.name = idn ? idn.name : (r.name || 'Player');
+    r.avatarIdx = idn ? idn.avatarIdx : 0;
+  });
+  return agg;
+}
+function getRankingFor(uid_){ return uid_ ? getRankings()[uid_] : null; }
+
+/* Record one finished battle as a single immutable node in the log, then
+   merge in the current identities of everyone who played (their name/avatar
+   at the moment the battle ended). `battleId` lets host and every guest all
+   append the *same* node (instead of one each) so merging never double-counts
+   a single battle played together. */
+function recordBattleResults(lobbyName, leaderboard, battleId){
+  leaderboard.forEach(p => { if(p.uid) upsertPlayerIdentity(p.uid, p.name, p.avatarIdx); });
+  mergeBattleLog([{
+    id: battleId || uid(),
+    ts: nowMs(),
+    lobbyName,
+    players: leaderboard.map(p => ({ uid:p.uid, name:p.name, avatarIdx:p.avatarIdx, score:p.score, correct:p.correct, total:p.total })),
+  }]);
+  pushHistory({ id: uid(), date: nowMs(), lobbyName, players: leaderboard });
+}
+
+/* One-time migration from the old "rankings keyed by lowercased name" format
+   (pre-User-ID) so nobody's existing local stats vanish on update. Each old
+   entry becomes its own permanent identity + a single legacy log node. */
+(function migrateLegacyRankings(){
+  const legacy = DB.get('rankings', null);
+  if(!legacy) return;
+  const seed = DB.get('legacy_seed', {});
+  const myProfile = getProfile();
+  Object.keys(legacy).forEach(key=>{
+    const r = legacy[key];
+    if(!r) return;
+    // The current device's own profile keeps its real uid; every other old
+    // name gets a fresh permanent id (best effort — the true id was never
+    // recorded pre-migration, but the points/history are preserved either way).
+    const mine = myProfile && myProfile.name && myProfile.name.trim().toLowerCase()===key;
+    const newUid = mine && myProfile.id ? myProfile.id : ('legacy-'+key.replace(/[^a-z0-9]/g,'').slice(0,24)+'-'+uid());
+    upsertPlayerIdentity(newUid, r.name, r.avatarIdx, 1);
+    seed[newUid] = { uid:newUid, games:r.games||0, wins:r.wins||0, totalScore:r.totalScore||0, totalCorrect:r.totalCorrect||0, totalQuestions:r.totalQuestions||0, bestScore:r.bestScore||0 };
+  });
+  DB.set('legacy_seed', seed);
+  localStorage.removeItem('qm_rankings');
+})();
 
 /* =========================================================================
    TRANSPORT LAYER
@@ -1042,7 +1221,7 @@ function openQrScanner(target){
 
 async function shareOrCopy(text, title){
   if(navigator.share){
-    try{ await navigator.share({ text, title: title||'QuizMe connect code' }); return true; }catch(e){ /* user cancelled or unsupported — fall back */ }
+    try{ await navigator.share({ text, title: title||'MindBattle connect code' }); return true; }catch(e){ /* user cancelled or unsupported — fall back */ }
   }
   copyText(text);
   return false;
@@ -1156,10 +1335,10 @@ function createWebRTCGuest(){
 }
 
 /* ---------- Local (same-device) transport via BroadcastChannel — auto-discovery for testing ---------- */
-const DISCO_CHANNEL = 'quizme-discovery-v1';
+const DISCO_CHANNEL = 'mindbattle-discovery-v1';
 function createLocalHost(roomCode, meta){
   const em = makeEmitter();
-  const roomCh = new BroadcastChannel('quizme-room-'+roomCode);
+  const roomCh = new BroadcastChannel('mindbattle-room-'+roomCode);
   const discoCh = new BroadcastChannel(DISCO_CHANNEL);
   const peers = new Map(); // peerId -> {name, avatarIdx, connected:true}
   let announceTimer = null;
@@ -1193,7 +1372,7 @@ function createLocalHost(roomCode, meta){
 }
 function createLocalGuest(roomCode, profile){
   const em = makeEmitter();
-  const roomCh = new BroadcastChannel('quizme-room-'+roomCode);
+  const roomCh = new BroadcastChannel('mindbattle-room-'+roomCode);
   const myId = uid();
   roomCh.onmessage = (e) => {
     const msg = e.data;
@@ -1210,25 +1389,6 @@ function scanForLocalLobbies(onFound){
   const discoCh = new BroadcastChannel(DISCO_CHANNEL);
   discoCh.onmessage = (e) => { if(e.data) onFound(e.data); };
   return () => discoCh.close();
-}
-
-function recordBattleResults(lobbyName, leaderboard){
-  // leaderboard: [{id,name,avatarIdx,score,correct,total}], sorted desc by score
-  const rankings = getRankings();
-  leaderboard.forEach((p, i) => {
-    const key = p.name.trim().toLowerCase();
-    if(!rankings[key]) rankings[key] = { name:p.name, avatarIdx:p.avatarIdx, games:0, wins:0, totalScore:0, totalCorrect:0, totalQuestions:0, bestScore:0 };
-    const r = rankings[key];
-    r.name = p.name; r.avatarIdx = p.avatarIdx;
-    r.games += 1;
-    if(i===0) r.wins += 1;
-    r.totalScore += p.score;
-    r.totalCorrect += p.correct;
-    r.totalQuestions += p.total;
-    r.bestScore = Math.max(r.bestScore, p.score);
-  });
-  saveRankings(rankings);
-  pushHistory({ id: uid(), date: nowMs(), lobbyName, players: leaderboard });
 }
 
 /* =========================================================================
@@ -1285,7 +1445,7 @@ SCREENS.onboarding = () => {
   return `<div class="screen flow active" style="justify-content:center;">
     <div class="center mb-4">
       <img src="icons/app-logo.png" style="width:76px;height:76px;border-radius:20px;margin:0 auto 14px;box-shadow:var(--sh-md);">
-      <h2 style="font-size:1.5rem;">Welcome to QuizMe Offline</h2>
+      <h2 style="font-size:1.5rem;">Welcome to MindBattle</h2>
       <p class="muted">Fill-in-the-blank quiz battles over your phone hotspot — no internet required, ever.</p>
     </div>
     <div class="card card-lg">
@@ -1328,7 +1488,7 @@ function capsuleStat(label, pct, grad){
 SCREENS.home = () => {
   const p = App.profile;
   const rankings = Object.values(getRankings()).sort((a,b)=>b.totalScore-a.totalScore);
-  const myRank = rankings.findIndex(r=>r.name.toLowerCase()===p.name.toLowerCase());
+  const myRank = rankings.findIndex(r=>r.uid===p.id);
   const me = myRank>=0 ? rankings[myRank] : null;
   const accuracy = me && me.totalQuestions ? Math.round((me.totalCorrect/me.totalQuestions)*100) : 0;
   const winRate = me && me.games ? Math.round((me.wins/me.games)*100) : 0;
@@ -1336,7 +1496,7 @@ SCREENS.home = () => {
   const gamesPct = me ? Math.min(100, me.games*10) : 0;
   return `<div class="screen active">
     <div class="topbar">
-      <div class="brand"><img src="icons/app-logo.png" alt="">QuizMe Offline</div>
+      <div class="brand"><img src="icons/app-logo.png" alt="">MindBattle</div>
       <button class="icon-btn" data-action="goto" data-screen="profile"><img src="${avatarSrc(p.avatarIdx)}" style="border-radius:50%;"></button>
     </div>
 
@@ -1391,7 +1551,7 @@ SCREENS.home = () => {
 /* ---------- Profile ---------- */
 SCREENS.profile = () => {
   const p = App.profile;
-  const r = getRankings()[p.name.trim().toLowerCase()];
+  const r = getRankingFor(p.id);
   return `<div class="screen active">
     <div class="topbar"><div class="brand">Profile</div></div>
     <div class="card card-lg center mb-3">
@@ -1410,9 +1570,17 @@ SCREENS.profile = () => {
       </div>
       <button class="btn btn-violet" data-action="save-profile">Save changes</button>
     </div>
+    <div class="card mb-3">
+      <label class="field-label">User ID</label>
+      <p class="muted small mb-2">Permanent and unique to you — this is what your ranking is actually tracked by, so renaming yourself (or changing your avatar) never resets your stats or splits your history into a "new" player. When your devices connect and sync, this ID is how everyone recognizes you.</p>
+      <div class="row gap" style="background:rgba(255,255,255,.4);border:1px solid var(--glass-border);border-radius:var(--r-sm);padding:10px 12px;">
+        <code class="grow small" style="word-break:break-all;font-family:ui-monospace,Consolas,monospace;color:var(--v700);font-weight:700;">${esc(p.id)}</code>
+        <button class="icon-btn ghost" data-action="copy-uid" data-uid="${esc(p.id)}"><img src="icons/copy.png"></button>
+      </div>
+    </div>
     <div class="card">
       <button class="btn btn-danger" data-action="reset-data"><img src="icons/trash.png">Reset all local data</button>
-      <p class="muted small mt-2">This clears your profile, quiz sets, rankings and history from this device only.</p>
+      <p class="muted small mt-2">This clears your profile, quiz sets, rankings and history from this device only. Any data already synced to other devices stays there.</p>
     </div>
   </div>`;
 };
@@ -1461,7 +1629,7 @@ SCREENS.discover = () => {
   return `<div class="screen active">
     <div class="topbar"><div class="brand">Discover</div></div>
     <div class="alert alert-info mb-3 small">
-      Browsers can't silently scan a Wi-Fi hotspot for other phones — that's a security restriction, not a QuizMe limit.
+      Browsers can't silently scan a Wi-Fi hotspot for other phones — that's a security restriction, not a MindBattle limit.
       So real cross-device connections use a quick one-time <b>connect code</b> instead (see Join Lobby — codes are compressed
       and one tap to Share/Paste, no retyping). This Discover screen auto-finds lobbies opened in <b>other browser tabs on
       this same device</b>, great for testing.
@@ -1919,24 +2087,6 @@ function genOptions(qz, pool){
   }
   return shuffleArray([correct, ...candidates]);
 }
-/* Speed-scoring: uses a SINGLE authoritative clock (whoever times the question — the
-   host) for every player, and rounds elapsed time into coarse buckets. This is what
-   actually fixes "two players answered at the same time but got different scores":
-   the old formula scored guests using their own device's countdown timer (rounded to
-   whole seconds and drifting independently of the host's timer + network jitter), so
-   two truly-simultaneous taps could land in different buckets on different devices.
-   Now every answer's speed is measured the same way, on the same clock, and answers
-   that land in the same ~150ms window always score identically. */
-function computeSpeedPoints(elapsedMs, seconds, maxPoints){
-  maxPoints = maxPoints || 100;
-  const minPoints = Math.round(maxPoints*0.5);
-  const totalMs = Math.max(1, seconds*1000);
-  const clamped = Math.max(0, Math.min(totalMs, elapsedMs));
-  const bucketMs = 150;
-  const bucketed = Math.round(clamped/bucketMs)*bucketMs;
-  const frac = 1 - Math.min(1, bucketed/totalMs);
-  return Math.round(minPoints + frac*(maxPoints-minPoints));
-}
 function genRoomCode(){
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let c=''; for(let i=0;i<6;i++) c += chars[Math.floor(Math.random()*chars.length)];
@@ -1947,7 +2097,7 @@ function genRoomCode(){
    HOST-SIDE connection handling
    ========================================================================= */
 function broadcastRoster(h){
-  const roster = h.players.map(p=>({ id:p.id, name:p.name, avatarIdx:p.avatarIdx, isHost:p.isHost }));
+  const roster = h.players.map(p=>({ id:p.id, uid:p.uid, name:p.name, avatarIdx:p.avatarIdx, isHost:p.isHost }));
   h.transport.broadcast({ t:'players', players: roster });
 }
 function setupHostHandlers(h){
@@ -1966,11 +2116,22 @@ function setupHostHandlers(h){
   h.transport.on('message', (peerId, msg)=>{
     if(!msg) return;
     if(msg.t==='hello'){
-      if(!h.players.find(p=>p.id===peerId)){
-        h.players.push({ id:peerId, name:(msg.name||'Player').slice(0,18), avatarIdx: msg.avatarIdx||0, isHost:false, connected:true });
+      const existing = h.players.find(p=>p.id===peerId);
+      if(!existing){
+        h.players.push({ id:peerId, uid: msg.id, name:(msg.name||'Player').slice(0,18), avatarIdx: msg.avatarIdx||0, isHost:false, connected:true });
+      } else {
+        existing.uid = msg.id; existing.name = (msg.name||existing.name).slice(0,18); existing.avatarIdx = msg.avatarIdx||existing.avatarIdx;
       }
+      // Merge the newly-joined player's whole sync chain (identities + battle
+      // log) into ours, then hand the fully-merged result to EVERY connected
+      // player — so a player who just reconnects instantly re-syncs, and
+      // whatever this new player already knew from earlier peers propagates
+      // to everyone already in the lobby too.
+      mergeSyncPayload(msg.sync);
       broadcastRoster(h);
+      h.transport.broadcast({ t:'sync', payload: buildSyncPayload() });
       if(App.screen==='lobby-host') render();
+      if(App.screen==='rankings') render();
     }
   });
 }
@@ -1982,7 +2143,7 @@ let guestTimerHandle = null;
 function setupGuestHandlers(g){
   g.transport.on('open', ()=>{
     g.status = 'connected';
-    g.transport.sendToHost({ t:'hello', name: App.profile.name, avatarIdx: App.profile.avatarIdx });
+    g.transport.sendToHost({ t:'hello', id: App.profile.id, name: App.profile.name, avatarIdx: App.profile.avatarIdx, sync: buildSyncPayload() });
     toast('Connected to host!');
     if(App.screen==='join-lobby') goTo('lobby-guest'); else render();
   });
@@ -2007,7 +2168,7 @@ function setupGuestHandlers(g){
       Object.assign(App.battle, {
         isHost:false, idx: msg.idx, totalQuestions: msg.total, phase:'question',
         currentText: msg.text, seconds: msg.seconds, timeLeft: msg.seconds, options: msg.options||[],
-        answered:false, myAnswerDraft:'', players: (g.players||[]).map(p=>({id:p.id,name:p.name,avatarIdx:p.avatarIdx,score:App.battle.players?(App.battle.players.find(x=>x.id===p.id)||{}).score||0:0})),
+        answered:false, myAnswerDraft:'', players: (g.players||[]).map(p=>({id:p.id,uid:p.uid,name:p.name,avatarIdx:p.avatarIdx,score:App.battle.players?(App.battle.players.find(x=>x.id===p.id)||{}).score||0:0})),
       });
       if(App.screen!=='battle') goTo('battle'); else render();
       startGuestCountdown(g);
@@ -2020,10 +2181,18 @@ function setupGuestHandlers(g){
       const me = App.battle.players.find(p=>p.id===g.transport.myId);
       if(me) me.score = msg.totalScore;
       render();
+    } else if(msg.t==='sync'){
+      // Ranking/identity data arriving from the host — already merged with
+      // every other player's chain on the host's side, so one merge here
+      // brings us fully up to date with the whole lobby (and, transitively,
+      // anyone THEY had synced with before).
+      mergeSyncPayload(msg.payload);
+      if(App.screen==='rankings' || App.screen==='profile') render();
     } else if(msg.t==='final'){
       const myId = g.transport.myId;
       const leaderboard = msg.leaderboard.map(p=>({ ...p, isMe: p.id===myId }));
-      recordBattleResults(g.lobbyName||'Battle', msg.leaderboard);
+      mergeSyncPayload(msg.sync);
+      recordBattleResults(g.lobbyName||'Battle', msg.leaderboard, msg.battleId);
       App._lastResults = { lobbyName: g.lobbyName||'Battle', leaderboard };
       g.transport.close();
       goTo('results');
@@ -2053,24 +2222,22 @@ function startGuestCountdown(g){
 async function startBattleAsSolo(setOrId, numQuestions, seconds){
   const set = typeof setOrId === 'string' ? getQuizSets().find(s=>s.id===setOrId) : setOrId;
   const questions = shuffleArray(set.questions).slice(0, numQuestions);
-  const me = { id:'ME', name:App.profile.name, avatarIdx:App.profile.avatarIdx };
+  const me = { id:'ME', uid: App.profile.id, name:App.profile.name, avatarIdx:App.profile.avatarIdx };
   const scoreState = { score:0, correct:0, total:0 };
 
   App.battle = {
     isHost:true, isSolo:true, totalQuestions: questions.length, idx:-1, phase:'waiting-next', seconds, timeLeft: seconds,
     myScore:0, answered:false, myAnswerDraft:'',
-    players: [{ id:me.id, name:me.name, avatarIdx:me.avatarIdx, score:0 }],
+    players: [{ id:me.id, uid:me.uid, name:me.name, avatarIdx:me.avatarIdx, score:0 }],
   };
   goTo('battle');
 
   for(let i=0;i<questions.length;i++){
     const qz = questions[i];
     const opts = genOptions(qz, set.questions);
-    const questionStartAt = Date.now();
-
     App.battle.idx=i; App.battle.phase='question'; App.battle.currentText=qz.text; App.battle.options=opts;
     App.battle.timeLeft=seconds; App.battle.answered=false; App.battle.myAnswerDraft='';
-    App.battle._hostAnswerText=''; App.battle._hostAnswerAt=null; App.battle._questionStartAt=questionStartAt;
+    App.battle._hostAnswerText='';
     render();
 
     let tLeft = seconds;
@@ -2084,10 +2251,10 @@ async function startBattleAsSolo(setOrId, numQuestions, seconds){
     });
 
     const given = App.battle._hostAnswerText || '';
-    const answeredAt = App.battle._hostAnswerAt || null;
-    const elapsedMs = answeredAt!=null ? (answeredAt - questionStartAt) : seconds*1000;
     const correct = answerMatches(given, qz.answers);
-    const points = correct ? computeSpeedPoints(elapsedMs, seconds, qz.points||100) : 0;
+    // Flat scoring: a correct answer is always worth the same fixed points, no
+    // matter how fast it was tapped — so the score never fluctuates.
+    const points = correct ? (qz.points||100) : 0;
     scoreState.score += points; scoreState.total += 1; if(correct) scoreState.correct += 1;
 
     App.battle.phase='reveal';
@@ -2095,7 +2262,7 @@ async function startBattleAsSolo(setOrId, numQuestions, seconds){
     App.battle.lastCorrectAnswer = qz.answers[0];
     App.battle.lastPoints = points;
     App.battle.myScore = scoreState.score;
-    App.battle.players = [{ id:me.id, name:me.name, avatarIdx:me.avatarIdx, score:scoreState.score }];
+    App.battle.players = [{ id:me.id, uid:me.uid, name:me.name, avatarIdx:me.avatarIdx, score:scoreState.score }];
     render();
 
     await sleep(2200);
@@ -2104,7 +2271,7 @@ async function startBattleAsSolo(setOrId, numQuestions, seconds){
     await sleep(300);
   }
 
-  const leaderboard = [{ id:me.id, name:me.name, avatarIdx:me.avatarIdx, score:scoreState.score, correct:scoreState.correct, total:scoreState.total, isMe:true }];
+  const leaderboard = [{ id:me.id, uid:me.uid, name:me.name, avatarIdx:me.avatarIdx, score:scoreState.score, correct:scoreState.correct, total:scoreState.total, isMe:true }];
   const lobbyName = 'Solo Practice — '+set.name;
   recordBattleResults(lobbyName, leaderboard);
   App._lastResults = { lobbyName, leaderboard };
@@ -2122,7 +2289,7 @@ async function startBattleAsHost(){
   App.battle = {
     isHost:true, totalQuestions: questions.length, idx:-1, phase:'waiting-next', seconds, timeLeft: seconds,
     myScore:0, answered:false, myAnswerDraft:'',
-    players: players.map(p=>({ id:p.id, name:p.name, avatarIdx:p.avatarIdx, score:0 })),
+    players: players.map(p=>({ id:p.id, uid:p.uid, name:p.name, avatarIdx:p.avatarIdx, score:0 })),
   };
   h.transport.broadcast({ t:'battle-starting' });
   goTo('battle');
@@ -2130,20 +2297,17 @@ async function startBattleAsHost(){
   for(let i=0;i<questions.length;i++){
     const qz = questions[i];
     const opts = genOptions(qz, set.questions);
-    const questionStartAt = Date.now(); // single authoritative clock for scoring this question
     h.transport.broadcast({ t:'question', idx:i, total:questions.length, text:qz.text, seconds, options:opts });
 
     App.battle.idx=i; App.battle.phase='question'; App.battle.currentText=qz.text; App.battle.options=opts;
     App.battle.timeLeft=seconds; App.battle.answered=false; App.battle.myAnswerDraft='';
-    App.battle._hostAnswerText=''; App.battle._hostAnswerAt=null; App.battle._questionStartAt=questionStartAt;
+    App.battle._hostAnswerText='';
     render();
 
     const pending = {};
     const collector = (peerId, msg) => {
-      // Timestamp every answer the instant the HOST receives it (not the sender's
-      // self-reported time), so all players are measured on the same clock.
       if(msg && msg.t==='answer' && msg.idx===i && pending[peerId]===undefined){
-        pending[peerId] = { text: msg.text||'', answeredAt: Date.now() };
+        pending[peerId] = { text: msg.text||'' };
       }
     };
     h.transport.on('message', collector);
@@ -2160,17 +2324,16 @@ async function startBattleAsHost(){
     h.transport.off('message', collector);
 
     const hostAnswerText = App.battle._hostAnswerText || '';
-    const hostAnsweredAt = App.battle._hostAnswerAt || null;
-    const deadlineElapsedMs = seconds*1000;
     const maxPoints = qz.points || 100;
 
     const results = {};
     players.forEach(p=>{
       const given = p.isHost ? hostAnswerText : (pending[p.id] ? pending[p.id].text : '');
-      const answeredAt = p.isHost ? hostAnsweredAt : (pending[p.id] ? pending[p.id].answeredAt : null);
-      const elapsedMs = answeredAt!=null ? (answeredAt - questionStartAt) : deadlineElapsedMs;
       const correct = answerMatches(given, qz.answers);
-      const points = correct ? computeSpeedPoints(elapsedMs, seconds, maxPoints) : 0;
+      // Flat scoring: a correct answer is always worth the same fixed points,
+      // whether it lands the instant the question appears or right at the
+      // buzzer. No speed component, so the same answer always scores the same.
+      const points = correct ? maxPoints : 0;
       scores[p.id].score += points; scores[p.id].total += 1; if(correct) scores[p.id].correct += 1;
       results[p.id] = { correct, points };
     });
@@ -2183,7 +2346,7 @@ async function startBattleAsHost(){
     App.battle.lastCorrectAnswer = qz.answers[0];
     App.battle.lastPoints = results[players.find(p=>p.isHost).id].points;
     App.battle.myScore = scores[players.find(p=>p.isHost).id].score;
-    App.battle.players = players.map(p=>({ id:p.id, name:p.name, avatarIdx:p.avatarIdx, score:scores[p.id].score }));
+    App.battle.players = players.map(p=>({ id:p.id, uid:p.uid, name:p.name, avatarIdx:p.avatarIdx, score:scores[p.id].score }));
     render();
 
     await sleep(2200);
@@ -2193,10 +2356,14 @@ async function startBattleAsHost(){
   }
 
   const leaderboard = players
-    .map(p=>({ id:p.id, name:p.name, avatarIdx:p.avatarIdx, score:scores[p.id].score, correct:scores[p.id].correct, total:scores[p.id].total, isMe: !!p.isHost }))
+    .map(p=>({ id:p.id, uid:p.uid, name:p.name, avatarIdx:p.avatarIdx, score:scores[p.id].score, correct:scores[p.id].correct, total:scores[p.id].total, isMe: !!p.isHost }))
     .sort((a,b)=>b.score-a.score);
-  h.transport.broadcast({ t:'final', leaderboard: leaderboard.map(({isMe,...rest})=>rest) });
-  recordBattleResults(h.lobbyName, leaderboard.map(({isMe,...rest})=>rest));
+  const battleId = uid();
+  // Record locally FIRST so this battle's own node is already part of what
+  // we hand out, then broadcast the fully-merged chain (this battle + every
+  // node we've ever merged in from anyone) to every player in one shot.
+  recordBattleResults(h.lobbyName, leaderboard.map(({isMe,...rest})=>rest), battleId);
+  h.transport.broadcast({ t:'final', battleId, leaderboard: leaderboard.map(({isMe,...rest})=>rest), sync: buildSyncPayload() });
   App._lastResults = { lobbyName: h.lobbyName, leaderboard };
   if(h.mode==='local') h.transport.stopAnnouncing();
   h.transport.close();
@@ -2246,7 +2413,8 @@ const actions = {
     location.reload();
   },
   'copy-code'(el){ copyText(el.dataset.code); },
-  'share-code'(el){ shareOrCopy(el.dataset.code, 'QuizMe connect code').then(shared=>{ if(!shared) toast('Code copied — paste it into your message app'); }); },
+  'copy-uid'(el){ copyText(el.dataset.uid); },
+  'share-code'(el){ shareOrCopy(el.dataset.code, 'MindBattle connect code').then(shared=>{ if(!shared) toast('Code copied — paste it into your message app'); }); },
   'paste-answer-code'(){
     if(!navigator.clipboard || !navigator.clipboard.readText){ toast('Long-press the box and paste manually'); return; }
     navigator.clipboard.readText().then(text=>{
@@ -2352,7 +2520,7 @@ const actions = {
     const transport = mode==='webrtc' ? createWebRTCHost() : createLocalHost(roomCode);
     App.host = {
       transport, lobbyName, quizSetId, numQuestions, seconds, mode, roomCode, inviteCode:null,
-      players: [{ id:'HOST', name:App.profile.name, avatarIdx:App.profile.avatarIdx, isHost:true, connected:true }],
+      players: [{ id:'HOST', uid:App.profile.id, name:App.profile.name, avatarIdx:App.profile.avatarIdx, isHost:true, connected:true }],
     };
     setupHostHandlers(App.host);
     if(mode==='local'){
@@ -2420,10 +2588,7 @@ const actions = {
     b.answered = true;
     b.myAnswerDraft = val;
     if(b.isHost){
-      // Host taps are timed on the host's own clock — the same clock used to
-      // time every guest's answer arrival, so speed scoring stays fair.
       App.battle._hostAnswerText = val;
-      App.battle._hostAnswerAt = Date.now();
     } else if(App.guest && App.guest.transport){
       App.guest.transport.sendToHost({ t:'answer', idx: b.idx, text: val });
     }
@@ -2532,7 +2697,7 @@ function registerServiceWorker(){
         }
       });
     });
-  }).catch((err) => console.warn('QuizMe: service worker registration failed', err));
+  }).catch((err) => console.warn('MindBattle: service worker registration failed', err));
 }
 document.addEventListener('DOMContentLoaded', init);
 </script>
